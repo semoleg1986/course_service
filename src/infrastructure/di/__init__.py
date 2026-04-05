@@ -1,0 +1,2 @@
+"""DI контейнер infrastructure-слоя."""
+

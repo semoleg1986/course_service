@@ -1,0 +1,2 @@
+"""Query DTO поддомена access."""
+

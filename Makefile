@@ -15,6 +15,18 @@ install: requirements ## Установить зависимости
 test: ## Запустить все тесты с подробным выводом
 	pytest -v
 
+test-integration: ## Запустить интеграционные тесты с Postgres
+	COURSE_USE_INMEMORY=0 \
+	COURSE_DATABASE_URL="$${COURSE_DATABASE_URL:-postgresql+psycopg://postgres:postgres@localhost:5432/course_service_test}" \
+	PYTHONPATH=. \
+	pytest -v -m integration tests/integration
+
+migrate-up: ## Применить миграции Alembic до head
+	alembic upgrade head
+
+migrate-down-1: ## Откатить одну миграцию Alembic
+	alembic downgrade -1
+
 # ========================
 # Code Quality
 # ========================

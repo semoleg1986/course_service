@@ -1,4 +1,12 @@
 pytest
+fastapi
+uvicorn
+pydantic
+pyjwt
+cryptography
+sqlalchemy
+alembic
+psycopg[binary]
 
 black
 isort
