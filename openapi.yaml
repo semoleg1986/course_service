@@ -10,6 +10,7 @@ servers:
 
 tags:
   - name: health
+  - name: internal
   - name: admin
   - name: teacher
   - name: student
@@ -34,6 +35,31 @@ paths:
                   status:
                     type: string
                     const: ok
+
+  /internal/v1/access/check:
+    post:
+      tags: [internal]
+      summary: Проверить доступ актора к курсу (межсервисный контракт)
+      operationId: internalCheckCourseAccess
+      security:
+        - serviceToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CourseAccessCheckRequest'
+      responses:
+        '200':
+          description: Решение по доступу к курсу
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CourseAccessDecisionResponse'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
 
   /v1/admin/courses:
     post:
@@ -540,6 +566,10 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
+    serviceToken:
+      type: apiKey
+      in: header
+      name: X-Service-Token
 
   parameters:
     CourseId:
@@ -626,6 +656,80 @@ components:
     AccessGrantStatus:
       type: string
       enum: [requested, paid, approved, rejected, revoked]
+
+    AccessDecision:
+      type: string
+      enum: [allow, deny]
+
+    AccessDecisionReasonCode:
+      type: string
+      enum:
+        - admin_override
+        - teacher_owner
+        - parent_allowed
+        - student_allowed
+        - course_not_found
+        - access_grant_required
+        - access_grant_not_approved
+        - enrollment_required
+        - enrollment_not_active
+        - role_not_allowed
+
+    CourseAccessCheckRequest:
+      type: object
+      required: [course_id, actor_account_id, actor_roles]
+      properties:
+        course_id:
+          type: string
+          format: uuid
+        actor_account_id:
+          type: string
+          format: uuid
+        actor_roles:
+          type: array
+          items:
+            type: string
+            enum: [admin, teacher, parent, student]
+        student_id:
+          type: string
+          format: uuid
+          nullable: true
+        require_active_grant:
+          type: boolean
+          default: true
+        require_enrollment:
+          type: boolean
+          default: false
+
+    CourseAccessDecisionResponse:
+      type: object
+      required:
+        [decision, reason_code, course_id, actor_account_id, checked_at]
+      properties:
+        decision:
+          $ref: '#/components/schemas/AccessDecision'
+        reason_code:
+          $ref: '#/components/schemas/AccessDecisionReasonCode'
+        course_id:
+          type: string
+          format: uuid
+        actor_account_id:
+          type: string
+          format: uuid
+        student_id:
+          type: string
+          format: uuid
+          nullable: true
+        grant_status:
+          $ref: '#/components/schemas/AccessGrantStatus'
+          nullable: true
+        enrollment_status:
+          type: string
+          enum: [active, completed, canceled]
+          nullable: true
+        checked_at:
+          type: string
+          format: date-time
 
     LessonContentItem:
       type: object

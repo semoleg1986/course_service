@@ -51,6 +51,7 @@ src/application/
 - `ListStudentCompletedCourses`
 - `ListPendingAccessGrants`
 - `GetParentChildAccessGrants`
+- `CheckCourseAccess`
 - `GetSubmissionResult`
 
 ## Контракт Фасада

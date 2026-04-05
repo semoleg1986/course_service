@@ -21,6 +21,7 @@ src/interface/http/
    |- student/router.py
    |- access/router.py
    |- parent/router.py
+   |- internal/router.py
    `- schemas/
       |- content.py
       |- delivery.py
@@ -35,6 +36,7 @@ src/interface/http/
 - извлекать actor context и вызывать `ApplicationFacade`
 - предоставлять admin-endpoints для модерации access grant
 - предоставлять parent-endpoints для чтения прогресса и завершенных курсов ребенка
+- предоставлять internal-endpoints для межсервисной проверки доступа к курсам
 
 ## Правила Границ
 
