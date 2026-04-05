@@ -1,0 +1,14 @@
+@startuml
+left to right direction
+
+rectangle auth_service
+rectangle users_service
+rectangle course_service
+rectangle attribution_service
+rectangle notification_service
+
+auth_service --> course_service : actor context / roles
+users_service --> course_service : teacher/student/link validation
+attribution_service --> course_service : token validation / discount / conversion
+course_service --> notification_service : optional domain events
+@enduml

@@ -1,0 +1,32 @@
+@startuml
+skinparam componentStyle rectangle
+
+package "interface" {
+  [HTTP API]
+}
+package "application" {
+  [ApplicationFacade]
+  [Handlers]
+  [Ports]
+}
+package "domain" {
+  [Aggregates]
+  [Policies]
+  [Domain Events]
+}
+package "infrastructure" {
+  [Repositories]
+  [UoW]
+  [Clients]
+  [Messaging]
+}
+
+[HTTP API] --> [ApplicationFacade]
+[ApplicationFacade] --> [Handlers]
+[Handlers] --> [Aggregates]
+[Handlers] --> [Ports]
+[Repositories] ..|> [Ports]
+[UoW] ..|> [Ports]
+[Clients] ..|> [Ports]
+[Messaging] ..|> [Ports]
+@enduml

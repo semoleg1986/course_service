@@ -1,0 +1,33 @@
+@startuml
+class Course {
+  +course_id
+  +publish_state
+  +schedule
+}
+class Module
+class Lesson
+class Assignment
+class QuizCheckpoint
+class Enrollment {
+  +enrollment_id
+  +student_id
+}
+class AccessGrant {
+  +grant_id
+  +student_id
+  +status
+}
+class Submission {
+  +submission_id
+  +status
+}
+
+Course "1" *-- "many" Module
+Module "1" *-- "many" Lesson
+Course "1" *-- "many" Assignment
+Course "1" *-- "many" QuizCheckpoint
+Enrollment "1" --> "1" Course
+AccessGrant "many" --> "1" Course
+Enrollment "1" --> "1" AccessGrant : requires approved
+Submission "many" --> "1" Enrollment
+@enduml
