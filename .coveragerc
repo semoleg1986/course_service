@@ -1,0 +1,14 @@
+[run]
+omit =
+    */__init__.py
+    src/interface/http/main.py
+    src/application/ports/*
+    src/domain/*/*/events.py
+    src/domain/*/*/repository.py
+    src/infrastructure/db/sqlalchemy/*
+    src/infrastructure/auth/jwks_access_token_verifier.py
+    src/infrastructure/di/composition.py
+
+[report]
+skip_empty = True
+show_missing = True
