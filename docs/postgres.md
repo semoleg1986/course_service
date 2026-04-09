@@ -34,8 +34,11 @@ uvicorn src.interface.http.main:app --reload
 `course_service` проверяет Bearer access token от `auth_service` по JWKS:
 
 - `COURSE_AUTH_ISSUER` (по умолчанию `auth_service`)
+- `COURSE_AUTH_AUDIENCE` (по умолчанию `platform_clients`)
 - `COURSE_AUTH_JWKS_URL`
 - `COURSE_AUTH_JWKS_JSON` (опционально, для тестов)
+
+Ожидается `typ=access` в JWT claims.
 
 ## 5. Интеграционные тесты (Postgres)
 

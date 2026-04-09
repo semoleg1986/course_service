@@ -15,6 +15,7 @@ from src.interface.http.app import create_app
 from src.interface.http.wiring import get_runtime
 
 pytestmark = pytest.mark.integration
+_AUDIENCE = "platform_clients"
 
 
 def _free_port() -> int:
@@ -48,6 +49,7 @@ def auth_service_base_url() -> str:
     env = os.environ.copy()
     env["AUTH_USE_INMEMORY"] = "1"
     env["AUTH_AUTO_CREATE_SCHEMA"] = "0"
+    env["AUTH_JWT_AUDIENCE"] = _AUDIENCE
     env.pop("AUTH_DATABASE_URL", None)
 
     process = subprocess.Popen(
@@ -110,6 +112,7 @@ def test_auth_token_accepted_by_course_service(auth_service_base_url: str) -> No
 
     os.environ["COURSE_AUTH_JWKS_URL"] = f"{auth_service_base_url}/.well-known/jwks.json"
     os.environ["COURSE_AUTH_ISSUER"] = "auth_service"
+    os.environ["COURSE_AUTH_AUDIENCE"] = _AUDIENCE
     os.environ.pop("COURSE_AUTH_JWKS_JSON", None)
     get_runtime.cache_clear()
 

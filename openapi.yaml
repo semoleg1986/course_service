@@ -5,6 +5,7 @@ info:
   description: |
     Контрактный API для контекста создания и доставки курсов.
     Соответствует границам Clean Architecture и DDD.
+    Авторизация Bearer JWT: issuer=auth_service, audience=platform_clients, typ=access.
 servers:
   - url: http://localhost:8000
 

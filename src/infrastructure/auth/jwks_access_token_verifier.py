@@ -17,10 +17,12 @@ class JwksAccessTokenVerifier:
         self,
         *,
         issuer: str,
+        audience: str,
         jwks_url: str,
         jwks_json: str | None = None,
     ) -> None:
         self._issuer = issuer
+        self._audience = audience
         self._jwks_url = jwks_url
         self._jwks_json = jwks_json
         self._cached_jwks: dict | None = None
@@ -37,16 +39,21 @@ class JwksAccessTokenVerifier:
                 jwt.PyJWK.from_dict(jwk).key,
                 algorithms=["EdDSA"],
                 issuer=self._issuer,
-                options={"require": ["iss", "sub", "iat", "exp"]},
+                audience=self._audience,
+                options={
+                    "require": ["iss", "aud", "sub", "jti", "roles", "iat", "exp", "typ"]
+                },
             )
         except Exception as exc:
             raise AccessDeniedError("Некорректный access token.") from exc
 
+        if claims.get("typ") != "access":
+            raise AccessDeniedError("Некорректный тип access token.")
         sub = str(claims.get("sub", "")).strip()
         roles = claims.get("roles", [])
         if not sub:
             raise AccessDeniedError("Access token не содержит subject.")
-        if not isinstance(roles, list):
+        if not isinstance(roles, list) or not roles:
             raise AccessDeniedError("Access token содержит некорректные roles.")
         return {"sub": sub, "roles": [str(item) for item in roles]}
 
