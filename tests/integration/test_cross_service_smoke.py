@@ -110,7 +110,9 @@ def test_auth_token_accepted_by_course_service(auth_service_base_url: str) -> No
     assert status == 200
     access_token = login["access_token"]
 
-    os.environ["COURSE_AUTH_JWKS_URL"] = f"{auth_service_base_url}/.well-known/jwks.json"
+    os.environ["COURSE_AUTH_JWKS_URL"] = (
+        f"{auth_service_base_url}/.well-known/jwks.json"
+    )
     os.environ["COURSE_AUTH_ISSUER"] = "auth_service"
     os.environ["COURSE_AUTH_AUDIENCE"] = _AUDIENCE
     os.environ.pop("COURSE_AUTH_JWKS_JSON", None)

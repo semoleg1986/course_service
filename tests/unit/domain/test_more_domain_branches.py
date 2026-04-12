@@ -5,7 +5,14 @@ from datetime import UTC, datetime
 import pytest
 
 from src.domain.content.course.entity import Course, Lesson, Module
-from src.domain.content.course.value_objects import CourseSchedule, CourseSlug, SeoMetadata
+from src.domain.content.course.value_objects import (
+    CourseAudience,
+    CourseDeliverySettings,
+    CoursePricing,
+    CourseSchedule,
+    CourseSlug,
+    SeoMetadata,
+)
 from src.domain.delivery.access_grant.entity import AccessGrant
 from src.domain.delivery.access_grant.value_objects import PaymentConfirmation
 from src.domain.delivery.enrollment.entity import Enrollment
@@ -21,6 +28,7 @@ def _published_course(now: datetime) -> Course:
     course = Course.create(
         course_id="course-1",
         title="Math",
+        description="Math desc",
         teacher_id="teacher-1",
         slug=CourseSlug("math"),
         schedule=CourseSchedule(starts_at=now, duration_days=45),
@@ -28,8 +36,12 @@ def _published_course(now: datetime) -> Course:
         created_at=now,
         created_by="teacher-1",
     )
-    module = Module.create(module_id="m-1", title="M", created_at=now, created_by="teacher-1")
-    lesson = Lesson.create(lesson_id="l-1", title="L", created_at=now, created_by="teacher-1")
+    module = Module.create(
+        module_id="m-1", title="M", created_at=now, created_by="teacher-1"
+    )
+    lesson = Lesson.create(
+        lesson_id="l-1", title="L", created_at=now, created_by="teacher-1"
+    )
     module.add_lesson(lesson, changed_at=now, changed_by="teacher-1")
     course.add_module(module, changed_at=now, changed_by="teacher-1")
     course.publish(changed_at=now, changed_by="teacher-1")
@@ -62,6 +74,27 @@ def test_course_seo_value_object_validation() -> None:
 
     with pytest.raises(InvariantViolationError):
         CourseSchedule(starts_at=_now(), duration_days=0)
+    with pytest.raises(InvariantViolationError):
+        CourseSchedule(starts_at=_now(), duration_days=10, access_ttl_days=0)
+    with pytest.raises(InvariantViolationError):
+        CourseSchedule(
+            starts_at=_now(),
+            duration_days=10,
+            enrollment_opens_at=datetime(2026, 4, 20, tzinfo=UTC),
+            enrollment_closes_at=datetime(2026, 4, 10, tzinfo=UTC),
+        )
+    with pytest.raises(InvariantViolationError):
+        CoursePricing(price=-1, currency="USD")
+    with pytest.raises(InvariantViolationError):
+        CoursePricing(price=10, currency="usd")
+    with pytest.raises(InvariantViolationError):
+        CourseAudience(language="", level="beginner")
+    with pytest.raises(InvariantViolationError):
+        CourseAudience(language="ru", level="beginner", age_min=16, age_max=10)
+    with pytest.raises(InvariantViolationError):
+        CourseDeliverySettings(tags=("math", "math"))
+    with pytest.raises(InvariantViolationError):
+        CourseDeliverySettings(is_live_enabled=True, live_room_template_id=None)
 
 
 def test_access_grant_reject_revoke_and_guards() -> None:

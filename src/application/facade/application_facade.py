@@ -9,12 +9,30 @@ class ApplicationFacade:
     """Единая точка входа в use-cases application-слоя."""
 
     def __init__(self) -> None:
+        self._command_handlers: dict[type, Callable[[Any], Any]] = {}
         self._query_handlers: dict[type, Callable[[Any], Any]] = {}
 
-    def register_query_handler(self, query_type: type, handler: Callable[[Any], Any]) -> None:
+    def register_command_handler(
+        self, command_type: type, handler: Callable[[Any], Any]
+    ) -> None:
+        """Регистрирует обработчик command."""
+
+        self._command_handlers[command_type] = handler
+
+    def register_query_handler(
+        self, query_type: type, handler: Callable[[Any], Any]
+    ) -> None:
         """Регистрирует обработчик query."""
 
         self._query_handlers[query_type] = handler
+
+    def execute(self, command: Any) -> Any:
+        """Выполняет command через зарегистрированный handler."""
+
+        handler = self._command_handlers.get(type(command))
+        if handler is None:
+            raise LookupError(f"Обработчик command не найден: {type(command).__name__}")
+        return handler(command)
 
     def query(self, query: Any) -> Any:
         """Выполняет query через зарегистрированный handler."""
@@ -23,4 +41,3 @@ class ApplicationFacade:
         if handler is None:
             raise LookupError(f"Обработчик query не найден: {type(query).__name__}")
         return handler(query)
-

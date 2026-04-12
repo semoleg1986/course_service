@@ -45,7 +45,9 @@ class Enrollment:
         :raises InvariantViolationError: Если курс/доступ не удовлетворяют инвариантам.
         """
         if course.publish_state != PublishState.PUBLISHED:
-            raise InvariantViolationError("Запись возможна только на опубликованный курс")
+            raise InvariantViolationError(
+                "Запись возможна только на опубликованный курс"
+            )
         if grant.student_id != student_id or grant.course_id != course.course_id:
             raise InvariantViolationError("AccessGrant не соответствует ученику/курсу")
         if not grant.is_enrollment_allowed:

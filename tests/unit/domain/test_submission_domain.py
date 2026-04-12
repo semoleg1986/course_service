@@ -33,11 +33,15 @@ def test_submission_guards_on_invalid_transitions() -> None:
     )
 
     with pytest.raises(InvariantViolationError):
-        submission.grade(score=90, feedback=None, changed_at=now, changed_by="teacher-1")
+        submission.grade(
+            score=90, feedback=None, changed_at=now, changed_by="teacher-1"
+        )
 
     submission.submit(changed_at=now, changed_by="student-1")
     with pytest.raises(InvariantViolationError):
         submission.submit(changed_at=now, changed_by="student-1")
 
     with pytest.raises(InvariantViolationError):
-        submission.grade(score=-1, feedback=None, changed_at=now, changed_by="teacher-1")
+        submission.grade(
+            score=-1, feedback=None, changed_at=now, changed_by="teacher-1"
+        )

@@ -41,7 +41,16 @@ class JwksAccessTokenVerifier:
                 issuer=self._issuer,
                 audience=self._audience,
                 options={
-                    "require": ["iss", "aud", "sub", "jti", "roles", "iat", "exp", "typ"]
+                    "require": [
+                        "iss",
+                        "aud",
+                        "sub",
+                        "jti",
+                        "roles",
+                        "iat",
+                        "exp",
+                        "typ",
+                    ]
                 },
             )
         except Exception as exc:

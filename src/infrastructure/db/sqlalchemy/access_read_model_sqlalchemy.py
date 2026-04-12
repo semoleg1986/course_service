@@ -52,7 +52,9 @@ class SqlalchemyAccessReadModel:
             else:
                 row.owner_account_id = owner_account_id
 
-    def seed_access_grant_status(self, course_id: str, student_id: str, status: str) -> None:
+    def seed_access_grant_status(
+        self, course_id: str, student_id: str, status: str
+    ) -> None:
         with self._session_factory.begin() as db:
             stmt = select(AccessGrantProjectionModel).where(
                 AccessGrantProjectionModel.course_id == course_id,
@@ -70,7 +72,9 @@ class SqlalchemyAccessReadModel:
             else:
                 row.status = status
 
-    def seed_enrollment_status(self, course_id: str, student_id: str, status: str) -> None:
+    def seed_enrollment_status(
+        self, course_id: str, student_id: str, status: str
+    ) -> None:
         with self._session_factory.begin() as db:
             stmt = select(EnrollmentProjectionModel).where(
                 EnrollmentProjectionModel.course_id == course_id,

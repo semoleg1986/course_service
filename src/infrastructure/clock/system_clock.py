@@ -12,4 +12,3 @@ class SystemClock:
         """Возвращает текущее UTC-время."""
 
         return datetime.now(UTC)
-

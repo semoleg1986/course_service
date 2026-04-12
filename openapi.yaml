@@ -86,6 +86,51 @@ paths:
         '403': { $ref: '#/components/responses/AccessDenied' }
         '422': { $ref: '#/components/responses/ValidationError' }
 
+  /v1/admin/courses/{course_id}:
+    get:
+      tags: [admin]
+      summary: Получить курс по ID
+      operationId: adminGetCourseById
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CourseId'
+      responses:
+        '200':
+          description: Курс найден
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CourseResponse'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [admin]
+      summary: Обновить курс (админ)
+      operationId: adminUpdateCourse
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CourseId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCourseRequest'
+      responses:
+        '200':
+          description: Курс обновлен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CourseResponse'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/AccessDenied' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
   /v1/admin/courses/{course_id}/publish:
     post:
       tags: [admin]
@@ -760,12 +805,23 @@ components:
         due_at:
           type: string
           format: date-time
+        enrollment_opens_at:
+          type: string
+          format: date-time
+        enrollment_closes_at:
+          type: string
+          format: date-time
         starts_at:
           type: string
           format: date-time
         duration_days:
           type: integer
           minimum: 1
+        access_ttl_days:
+          type: integer
+          minimum: 1
+        timezone:
+          type: string
 
     SeoMetadata:
       type: object
@@ -795,6 +851,8 @@ components:
         teacher_id:
           type: string
           format: uuid
+        teacher_display_name:
+          type: string
         slug:
           type: string
           pattern: '^[a-z0-9]+(?:-[a-z0-9]+)*$'
@@ -806,8 +864,118 @@ components:
         duration_days:
           type: integer
           minimum: 1
+        access_ttl_days:
+          type: integer
+          minimum: 1
+        enrollment_opens_at:
+          type: string
+          format: date-time
+        enrollment_closes_at:
+          type: string
+          format: date-time
+        price:
+          type: number
+          minimum: 0
+        currency:
+          type: string
+          pattern: '^[A-Z]{3}$'
+        language:
+          type: string
+        age_min:
+          type: integer
+          minimum: 0
+        age_max:
+          type: integer
+          minimum: 0
+        level:
+          type: string
+          enum: [beginner, intermediate, advanced]
+        tags:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+        cover_image_url:
+          type: string
+          format: uri
+        is_live_enabled:
+          type: boolean
+        live_room_template_id:
+          type: string
+        timezone:
+          type: string
+        max_students:
+          type: integer
+          minimum: 1
         schedule:
           $ref: '#/components/schemas/ScheduleWindow'
+        seo:
+          $ref: '#/components/schemas/SeoMetadata'
+
+    UpdateCourseRequest:
+      type: object
+      properties:
+        title:
+          type: string
+        teacher_id:
+          type: string
+          format: uuid
+        teacher_display_name:
+          type: string
+        slug:
+          type: string
+          pattern: '^[a-z0-9]+(?:-[a-z0-9]+)*$'
+        description:
+          type: string
+        starts_at:
+          type: string
+          format: date-time
+        duration_days:
+          type: integer
+          minimum: 1
+        access_ttl_days:
+          type: integer
+          minimum: 1
+        enrollment_opens_at:
+          type: string
+          format: date-time
+        enrollment_closes_at:
+          type: string
+          format: date-time
+        price:
+          type: number
+          minimum: 0
+        currency:
+          type: string
+          pattern: '^[A-Z]{3}$'
+        language:
+          type: string
+        age_min:
+          type: integer
+          minimum: 0
+        age_max:
+          type: integer
+          minimum: 0
+        level:
+          type: string
+          enum: [beginner, intermediate, advanced]
+        tags:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+        cover_image_url:
+          type: string
+          format: uri
+        is_live_enabled:
+          type: boolean
+        live_room_template_id:
+          type: string
+        timezone:
+          type: string
+        max_students:
+          type: integer
+          minimum: 1
         seo:
           $ref: '#/components/schemas/SeoMetadata'
 
@@ -902,7 +1070,8 @@ components:
 
     CourseResponse:
       type: object
-      required: [course_id, title, teacher_id, starts_at, duration_days, lessons_total, estimated_duration_hours, publish_state]
+      required:
+        [course_id, title, teacher_id, starts_at, duration_days, modules_count, lessons_total, estimated_duration_hours, is_free, publish_state]
       properties:
         course_id:
           type: string
@@ -912,6 +1081,9 @@ components:
         teacher_id:
           type: string
           format: uuid
+        teacher_display_name:
+          type: string
+          nullable: true
         slug:
           type: string
         description:
@@ -922,12 +1094,84 @@ components:
         duration_days:
           type: integer
           minimum: 1
+        access_ttl_days:
+          type: integer
+          minimum: 1
+          nullable: true
+        enrollment_opens_at:
+          type: string
+          format: date-time
+          nullable: true
+        enrollment_closes_at:
+          type: string
+          format: date-time
+          nullable: true
+        price:
+          type: number
+          minimum: 0
+        currency:
+          type: string
+          pattern: '^[A-Z]{3}$'
+        language:
+          type: string
+        age_min:
+          type: integer
+          minimum: 0
+          nullable: true
+        age_max:
+          type: integer
+          minimum: 0
+          nullable: true
+        level:
+          type: string
+          enum: [beginner, intermediate, advanced]
+        tags:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+        cover_image_url:
+          type: string
+          format: uri
+          nullable: true
+        is_live_enabled:
+          type: boolean
+        live_room_template_id:
+          type: string
+          nullable: true
+        timezone:
+          type: string
+        max_students:
+          type: integer
+          minimum: 1
+          nullable: true
+        modules_count:
+          type: integer
+          minimum: 0
         lessons_total:
           type: integer
           minimum: 0
         estimated_duration_hours:
           type: integer
           minimum: 0
+        is_free:
+          type: boolean
+        published_at:
+          type: string
+          format: date-time
+          nullable: true
+        published_by_admin_id:
+          type: string
+          format: uuid
+          nullable: true
+        archived_at:
+          type: string
+          format: date-time
+          nullable: true
+        archived_by:
+          type: string
+          format: uuid
+          nullable: true
         publish_state:
           $ref: '#/components/schemas/PublishState'
         seo:
@@ -935,7 +1179,8 @@ components:
 
     PublicCourseResponse:
       type: object
-      required: [course_id, slug, title, teacher_id, starts_at, duration_days, lessons_total, estimated_duration_hours, publish_state]
+      required:
+        [course_id, slug, title, teacher_id, starts_at, duration_days, modules_count, lessons_total, estimated_duration_hours, is_free, publish_state]
       properties:
         course_id:
           type: string
@@ -947,6 +1192,9 @@ components:
         teacher_id:
           type: string
           format: uuid
+        teacher_display_name:
+          type: string
+          nullable: true
         description:
           type: string
         starts_at:
@@ -955,12 +1203,72 @@ components:
         duration_days:
           type: integer
           minimum: 1
+        access_ttl_days:
+          type: integer
+          minimum: 1
+          nullable: true
+        enrollment_opens_at:
+          type: string
+          format: date-time
+          nullable: true
+        enrollment_closes_at:
+          type: string
+          format: date-time
+          nullable: true
+        price:
+          type: number
+          minimum: 0
+        currency:
+          type: string
+          pattern: '^[A-Z]{3}$'
+        language:
+          type: string
+        age_min:
+          type: integer
+          minimum: 0
+          nullable: true
+        age_max:
+          type: integer
+          minimum: 0
+          nullable: true
+        level:
+          type: string
+          enum: [beginner, intermediate, advanced]
+        tags:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+        cover_image_url:
+          type: string
+          format: uri
+          nullable: true
+        is_live_enabled:
+          type: boolean
+        live_room_template_id:
+          type: string
+          nullable: true
+        timezone:
+          type: string
+        max_students:
+          type: integer
+          minimum: 1
+          nullable: true
+        modules_count:
+          type: integer
+          minimum: 0
         lessons_total:
           type: integer
           minimum: 0
         estimated_duration_hours:
           type: integer
           minimum: 0
+        is_free:
+          type: boolean
+        published_at:
+          type: string
+          format: date-time
+          nullable: true
         publish_state:
           type: string
           enum: [published]

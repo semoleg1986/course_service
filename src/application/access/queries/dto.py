@@ -15,4 +15,3 @@ class CheckCourseAccessQuery:
     student_id: str | None = None
     require_active_grant: bool = True
     require_enrollment: bool = False
-

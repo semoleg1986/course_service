@@ -65,6 +65,7 @@ src/application/
 
 - `UnitOfWork` инкапсулирует транзакцию и репозитории
 - `EventBusPort` публикует доменные события
+- `TeacherDirectory` валидирует `teacher_id` через `users_service` и возвращает snapshot профиля преподавателя
 - внешние клиенты (`users_service`, `attribution-service`) доступны только через порты
 
 ## Границы Слоя

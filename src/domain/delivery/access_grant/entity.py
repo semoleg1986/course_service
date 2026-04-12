@@ -6,6 +6,7 @@ from datetime import datetime
 from src.domain.errors import InvariantViolationError
 from src.domain.shared.entity import EntityMeta
 from src.domain.shared.statuses import AccessGrantStatus
+
 from .value_objects import AttributionSnapshot, PaymentConfirmation
 
 
@@ -65,7 +66,9 @@ class AccessGrant:
         :raises InvariantViolationError: Если статус не допускает оплату.
         """
         if self.status not in {AccessGrantStatus.REQUESTED, AccessGrantStatus.PAID}:
-            raise InvariantViolationError("Оплату можно отметить только для запрошенного доступа")
+            raise InvariantViolationError(
+                "Оплату можно отметить только для запрошенного доступа"
+            )
         self.payment = payment
         self.status = AccessGrantStatus.PAID
         self.meta.touch(at=changed_at, actor_id=changed_by)
@@ -77,7 +80,9 @@ class AccessGrant:
         :raises InvariantViolationError: Если доступ не в статусе paid.
         """
         if self.status != AccessGrantStatus.PAID:
-            raise InvariantViolationError("Доступ можно одобрить только из статуса paid")
+            raise InvariantViolationError(
+                "Доступ можно одобрить только из статуса paid"
+            )
         self.status = AccessGrantStatus.APPROVED
         self.approved_by_admin_id = admin_id
         self.meta.touch(at=changed_at, actor_id=admin_id)
@@ -85,7 +90,9 @@ class AccessGrant:
     def reject(self, changed_at: datetime, changed_by: str) -> None:
         """Отклонить запрос доступа."""
         if self.status in {AccessGrantStatus.APPROVED, AccessGrantStatus.REVOKED}:
-            raise InvariantViolationError("Одобренный/отозванный доступ нельзя отклонить")
+            raise InvariantViolationError(
+                "Одобренный/отозванный доступ нельзя отклонить"
+            )
         self.status = AccessGrantStatus.REJECTED
         self.meta.touch(at=changed_at, actor_id=changed_by)
 

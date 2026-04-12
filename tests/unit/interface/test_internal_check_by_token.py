@@ -15,7 +15,9 @@ def test_internal_check_by_token_route() -> None:
     get_runtime.cache_clear()
 
     app = create_app()
-    app.dependency_overrides[get_http_actor] = lambda: HttpActor(actor_id="student-1", roles=["student"])
+    app.dependency_overrides[get_http_actor] = lambda: HttpActor(
+        actor_id="student-1", roles=["student"]
+    )
     client = TestClient(app)
 
     response = client.post(

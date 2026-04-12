@@ -5,7 +5,11 @@ from datetime import UTC, datetime
 import pytest
 
 from src.domain.content.course.entity import Course, Lesson, Module
-from src.domain.content.course.value_objects import CourseSchedule, CourseSlug, SeoMetadata
+from src.domain.content.course.value_objects import (
+    CourseSchedule,
+    CourseSlug,
+    SeoMetadata,
+)
 from src.domain.delivery.access_grant.entity import AccessGrant
 from src.domain.delivery.access_grant.value_objects import PaymentConfirmation
 from src.domain.delivery.enrollment.entity import Enrollment
@@ -20,6 +24,7 @@ def _course(now: datetime) -> Course:
     course = Course.create(
         course_id="course-1",
         title="Math",
+        description="Desc",
         teacher_id="teacher-1",
         slug=CourseSlug("math"),
         schedule=CourseSchedule(starts_at=now, duration_days=21),
@@ -28,7 +33,9 @@ def _course(now: datetime) -> Course:
         created_by="teacher-1",
     )
     module = Module.create("m-1", "Module", now, "teacher-1")
-    module.add_lesson(Lesson.create("l-1", "Lesson", now, "teacher-1"), now, "teacher-1")
+    module.add_lesson(
+        Lesson.create("l-1", "Lesson", now, "teacher-1"), now, "teacher-1"
+    )
     course.add_module(module, now, "teacher-1")
     return course
 
@@ -44,8 +51,12 @@ def test_course_publish_seo_guard_and_archive() -> None:
 
     object.__setattr__(course.seo, "meta_description", "Desc")
     course.publish(changed_at=now, changed_by="teacher-1")
+    assert course.published_at == now
+    assert course.published_by_admin_id == "teacher-1"
     course.archive(changed_at=now, changed_by="teacher-1")
     assert course.publish_state.value == "archived"
+    assert course.archived_at == now
+    assert course.archived_by == "teacher-1"
 
 
 def test_payment_confirmation_and_enrollment_mismatch_guards() -> None:

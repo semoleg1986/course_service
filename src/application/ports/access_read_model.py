@@ -16,4 +16,3 @@ class AccessReadModel(Protocol):
 
     def get_enrollment_status(self, course_id: str, student_id: str) -> str | None:
         """Возвращает статус enrollment для пары курс/ученик."""
-

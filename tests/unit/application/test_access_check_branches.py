@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from src.application.access.handlers.check_course_access_handler import CheckCourseAccessHandler
+from src.application.access.handlers.check_course_access_handler import (
+    CheckCourseAccessHandler,
+)
 from src.application.access.queries.dto import CheckCourseAccessQuery
 from src.infrastructure.clock.system_clock import SystemClock
 from src.infrastructure.db.inmemory.access_read_model import InMemoryAccessReadModel

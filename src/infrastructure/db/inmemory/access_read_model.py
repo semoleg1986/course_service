@@ -25,13 +25,16 @@ class InMemoryAccessReadModel:
 
         self._course_owner[course_id] = owner_account_id
 
-    def seed_access_grant_status(self, course_id: str, student_id: str, status: str) -> None:
+    def seed_access_grant_status(
+        self, course_id: str, student_id: str, status: str
+    ) -> None:
         """Заполняет read model статусом доступа."""
 
         self._access_grant_status[(course_id, student_id)] = status
 
-    def seed_enrollment_status(self, course_id: str, student_id: str, status: str) -> None:
+    def seed_enrollment_status(
+        self, course_id: str, student_id: str, status: str
+    ) -> None:
         """Заполняет read model статусом enrollment."""
 
         self._enrollment_status[(course_id, student_id)] = status
-

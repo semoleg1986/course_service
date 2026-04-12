@@ -45,7 +45,9 @@ class Submission:
     def submit(self, changed_at: datetime, changed_by: str) -> None:
         """Перевести сдачу в состояние submitted."""
         if self.status != SubmissionStatus.STARTED:
-            raise InvariantViolationError("Сдачу можно отправить только из состояния started")
+            raise InvariantViolationError(
+                "Сдачу можно отправить только из состояния started"
+            )
         self.status = SubmissionStatus.SUBMITTED
         self.meta.touch(at=changed_at, actor_id=changed_by)
 
@@ -62,7 +64,9 @@ class Submission:
         :raises InvariantViolationError: Если нарушен жизненный цикл submission.
         """
         if self.status != SubmissionStatus.SUBMITTED:
-            raise InvariantViolationError("Оценивание возможно только для submitted-сдачи")
+            raise InvariantViolationError(
+                "Оценивание возможно только для submitted-сдачи"
+            )
         if score < 0:
             raise InvariantViolationError("Оценка не может быть отрицательной")
         self.status = SubmissionStatus.GRADED

@@ -11,4 +11,3 @@ class Clock(Protocol):
 
     def now(self) -> datetime:
         """Возвращает текущее время в UTC."""
-

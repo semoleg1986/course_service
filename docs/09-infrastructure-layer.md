@@ -35,7 +35,7 @@ src/infrastructure/
 - реализовать репозитории и `UnitOfWork`
 - реализовать медиа-метаданные и object-storage адаптеры (presigned URL flow)
 - реализовать outbox/event bus публикацию
-- реализовать внешние клиенты (`users_service`, опционально другие)
+- реализовать внешние клиенты (`users_service` для teacher lookup, опционально другие)
 - собрать DI composition root для runtime
 
 ## Правила Границ

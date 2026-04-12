@@ -33,7 +33,9 @@ def get_http_actor(
     try:
         claims = verifier.decode_access(access_token)
     except Exception as exc:
-        raise HTTPException(status_code=401, detail="Некорректный access token.") from exc
+        raise HTTPException(
+            status_code=401, detail="Некорректный access token."
+        ) from exc
 
     actor_id = str(claims.get("sub", "")).strip()
     roles = [str(role).strip() for role in claims.get("roles", []) if str(role).strip()]

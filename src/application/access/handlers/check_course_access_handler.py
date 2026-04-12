@@ -33,7 +33,9 @@ class CheckCourseAccessHandler:
         student_id = query.student_id or query.actor_account_id
         grant_status = None
         if query.require_active_grant:
-            grant_status = self._read_model.get_access_grant_status(query.course_id, student_id)
+            grant_status = self._read_model.get_access_grant_status(
+                query.course_id, student_id
+            )
             if grant_status is None:
                 return self._deny(query, "access_grant_required", student_id=student_id)
             if grant_status != "approved":
@@ -46,7 +48,9 @@ class CheckCourseAccessHandler:
 
         enrollment_status = None
         if query.require_enrollment:
-            enrollment_status = self._read_model.get_enrollment_status(query.course_id, student_id)
+            enrollment_status = self._read_model.get_enrollment_status(
+                query.course_id, student_id
+            )
             if enrollment_status is None:
                 return self._deny(
                     query,
@@ -111,4 +115,3 @@ class CheckCourseAccessHandler:
             enrollment_status=enrollment_status,
             checked_at=self._clock.now(),
         )
-

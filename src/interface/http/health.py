@@ -12,4 +12,3 @@ def healthz() -> dict[str, str]:
     """Проверка состояния сервиса."""
 
     return {"status": "ok"}
-

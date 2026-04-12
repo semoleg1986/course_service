@@ -4,16 +4,31 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from src.application.ports.access_token_verifier import AccessTokenVerifier
 from src.application.access.handlers.check_course_access_handler import (
     CheckCourseAccessHandler,
 )
 from src.application.access.queries.dto import CheckCourseAccessQuery
+from src.application.courses.commands.dto import (
+    CreateCourseCommand,
+    UpdateCourseCommand,
+)
+from src.application.courses.handlers.manage_course_handlers import (
+    CreateCourseHandler,
+    GetCourseByIdHandler,
+    UpdateCourseHandler,
+)
+from src.application.courses.queries.dto import GetCourseByIdQuery
 from src.application.facade.application_facade import ApplicationFacade
+from src.application.ports.access_token_verifier import AccessTokenVerifier
 from src.infrastructure.auth.jwks_access_token_verifier import JwksAccessTokenVerifier
 from src.infrastructure.clock.system_clock import SystemClock
 from src.infrastructure.config.settings import Settings
 from src.infrastructure.db.inmemory.access_read_model import InMemoryAccessReadModel
+from src.infrastructure.db.inmemory.course_repository import InMemoryCourseRepository
+from src.infrastructure.users.inmemory_teacher_directory import InMemoryTeacherDirectory
+from src.infrastructure.users.users_service_teacher_directory import (
+    UsersServiceTeacherDirectory,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -39,17 +54,32 @@ def build_runtime() -> RuntimeContainer:
 
     if settings.use_inmemory:
         read_model = InMemoryAccessReadModel()
+        course_repository = InMemoryCourseRepository()
+        teacher_directory = InMemoryTeacherDirectory()
     else:
-        from src.infrastructure.db.sqlalchemy.base import Base
-        from src.infrastructure.db.sqlalchemy.session import build_engine, build_session_factory
         from src.infrastructure.db.sqlalchemy.access_read_model_sqlalchemy import (
             SqlalchemyAccessReadModel,
+        )
+        from src.infrastructure.db.sqlalchemy.base import Base
+        from src.infrastructure.db.sqlalchemy.course_repository_sqlalchemy import (
+            SqlalchemyCourseRepository,
+        )
+        from src.infrastructure.db.sqlalchemy.session import (
+            build_engine,
+            build_session_factory,
         )
 
         engine = build_engine(settings.database_url)
         if settings.auto_create_schema:
             Base.metadata.create_all(bind=engine)
-        read_model = SqlalchemyAccessReadModel(build_session_factory(engine))
+        session_factory = build_session_factory(engine)
+        read_model = SqlalchemyAccessReadModel(session_factory)
+        course_repository = SqlalchemyCourseRepository(session_factory)
+        teacher_directory = UsersServiceTeacherDirectory(
+            base_url=settings.users_service_base_url,
+            service_token=settings.users_service_token,
+            timeout_seconds=settings.users_service_timeout_seconds,
+        )
 
     # Demo-данные для локальной проверки контракта.
     read_model.seed_course_owner(
@@ -68,6 +98,26 @@ def build_runtime() -> RuntimeContainer:
     )
 
     facade = ApplicationFacade()
+    facade.register_command_handler(
+        CreateCourseCommand,
+        CreateCourseHandler(
+            repository=course_repository,
+            clock=clock,
+            teacher_directory=teacher_directory,
+        ),
+    )
+    facade.register_command_handler(
+        UpdateCourseCommand,
+        UpdateCourseHandler(
+            repository=course_repository,
+            clock=clock,
+            teacher_directory=teacher_directory,
+        ),
+    )
+    facade.register_query_handler(
+        GetCourseByIdQuery,
+        GetCourseByIdHandler(repository=course_repository),
+    )
     facade.register_query_handler(
         CheckCourseAccessQuery,
         CheckCourseAccessHandler(read_model=read_model, clock=clock),

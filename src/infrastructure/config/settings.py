@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 import os
+from dataclasses import dataclass
 
 
 @dataclass(frozen=True, slots=True)
@@ -18,6 +18,9 @@ class Settings:
     auth_jwks_json: str | None
     auth_issuer: str
     auth_audience: str
+    users_service_base_url: str
+    users_service_token: str
+    users_service_timeout_seconds: float
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -37,4 +40,13 @@ class Settings:
             auth_jwks_json=os.getenv("COURSE_AUTH_JWKS_JSON"),
             auth_issuer=os.getenv("COURSE_AUTH_ISSUER", "auth_service"),
             auth_audience=os.getenv("COURSE_AUTH_AUDIENCE", "platform_clients"),
+            users_service_base_url=os.getenv(
+                "COURSE_USERS_SERVICE_BASE_URL", "http://localhost:8002"
+            ),
+            users_service_token=os.getenv(
+                "COURSE_USERS_SERVICE_TOKEN", "dev-service-token"
+            ),
+            users_service_timeout_seconds=float(
+                os.getenv("COURSE_USERS_SERVICE_TIMEOUT_SECONDS", "2")
+            ),
         )

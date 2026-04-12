@@ -1,15 +1,15 @@
 """create access projection tables
 
 Revision ID: 20260406_0001
-Revises: 
+Revises:
 Create Date: 2026-04-06
 """
 
 from typing import Sequence, Union
 
-from alembic import op
 import sqlalchemy as sa
 
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "20260406_0001"
@@ -85,14 +85,26 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_index("ix_enrollment_projections_status", table_name="enrollment_projections")
-    op.drop_index("ix_enrollment_projections_student_id", table_name="enrollment_projections")
-    op.drop_index("ix_enrollment_projections_course_id", table_name="enrollment_projections")
+    op.drop_index(
+        "ix_enrollment_projections_status", table_name="enrollment_projections"
+    )
+    op.drop_index(
+        "ix_enrollment_projections_student_id", table_name="enrollment_projections"
+    )
+    op.drop_index(
+        "ix_enrollment_projections_course_id", table_name="enrollment_projections"
+    )
     op.drop_table("enrollment_projections")
 
-    op.drop_index("ix_access_grant_projections_status", table_name="access_grant_projections")
-    op.drop_index("ix_access_grant_projections_student_id", table_name="access_grant_projections")
-    op.drop_index("ix_access_grant_projections_course_id", table_name="access_grant_projections")
+    op.drop_index(
+        "ix_access_grant_projections_status", table_name="access_grant_projections"
+    )
+    op.drop_index(
+        "ix_access_grant_projections_student_id", table_name="access_grant_projections"
+    )
+    op.drop_index(
+        "ix_access_grant_projections_course_id", table_name="access_grant_projections"
+    )
     op.drop_table("access_grant_projections")
 
     op.drop_index(

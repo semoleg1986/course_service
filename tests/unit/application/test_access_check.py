@@ -39,4 +39,3 @@ def test_student_requires_approved_grant() -> None:
 
     assert result.decision == "deny"
     assert result.reason_code == "access_grant_required"
-

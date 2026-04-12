@@ -6,7 +6,15 @@ from datetime import datetime
 from src.domain.errors import InvariantViolationError
 from src.domain.shared.entity import EntityMeta
 from src.domain.shared.statuses import PublishState
-from .value_objects import CourseSchedule, CourseSlug, SeoMetadata
+
+from .value_objects import (
+    CourseAudience,
+    CourseDeliverySettings,
+    CoursePricing,
+    CourseSchedule,
+    CourseSlug,
+    SeoMetadata,
+)
 
 
 @dataclass(slots=True)
@@ -92,12 +100,22 @@ class Course:
     :type course_id: str
     :param title: Название курса.
     :type title: str
+    :param description: Краткое описание курса.
+    :type description: str | None
     :param teacher_id: Идентификатор преподавателя (account/user id из users_service).
     :type teacher_id: str
+    :param teacher_display_name: Снэпшот отображаемого имени преподавателя для каталога.
+    :type teacher_display_name: str | None
     :param slug: SEO slug курса.
     :type slug: CourseSlug
     :param schedule: Расписание курса.
     :type schedule: CourseSchedule
+    :param pricing: Ценовые параметры.
+    :type pricing: CoursePricing
+    :param audience: Параметры аудитории.
+    :type audience: CourseAudience
+    :param delivery: Настройки доставки/представления.
+    :type delivery: CourseDeliverySettings
     :param seo: SEO-метаданные.
     :type seo: SeoMetadata
     :param meta: Технические метаданные агрегата.
@@ -110,12 +128,19 @@ class Course:
 
     course_id: str
     title: str
+    description: str | None
     teacher_id: str
+    teacher_display_name: str | None
     slug: CourseSlug
     schedule: CourseSchedule
+    pricing: CoursePricing
+    audience: CourseAudience
+    delivery: CourseDeliverySettings
     seo: SeoMetadata
     meta: EntityMeta
     publish_state: PublishState = PublishState.DRAFT
+    published_at: datetime | None = None
+    published_by_admin_id: str | None = None
     modules: list[Module] = field(default_factory=list)
 
     @classmethod
@@ -123,12 +148,17 @@ class Course:
         cls,
         course_id: str,
         title: str,
+        description: str | None,
         teacher_id: str,
         slug: CourseSlug,
         schedule: CourseSchedule,
         seo: SeoMetadata,
         created_at: datetime,
         created_by: str,
+        teacher_display_name: str | None = None,
+        pricing: CoursePricing | None = None,
+        audience: CourseAudience | None = None,
+        delivery: CourseDeliverySettings | None = None,
     ) -> "Course":
         """Создать новый курс."""
         if not teacher_id.strip():
@@ -136,12 +166,24 @@ class Course:
         return cls(
             course_id=course_id,
             title=title,
+            description=description.strip() if description else None,
             teacher_id=teacher_id,
+            teacher_display_name=(
+                teacher_display_name.strip() if teacher_display_name else None
+            ),
             slug=slug,
             schedule=schedule,
+            pricing=pricing or CoursePricing(),
+            audience=audience or CourseAudience(),
+            delivery=delivery or CourseDeliverySettings(),
             seo=seo,
             meta=EntityMeta.create(at=created_at, actor_id=created_by),
         )
+
+    @property
+    def modules_count(self) -> int:
+        """Количество модулей курса."""
+        return len(self.modules)
 
     @property
     def lessons_total(self) -> int:
@@ -157,6 +199,21 @@ class Course:
         """
         return self.lessons_total
 
+    @property
+    def is_free(self) -> bool:
+        """Флаг бесплатного курса."""
+        return self.pricing.price == 0
+
+    @property
+    def archived_at(self) -> datetime | None:
+        """Дата архивирования."""
+        return self.meta.archived_at
+
+    @property
+    def archived_by(self) -> str | None:
+        """Кто архивировал курс."""
+        return self.meta.archived_by
+
     def add_module(self, module: Module, changed_at: datetime, changed_by: str) -> None:
         """Добавить модуль в курс."""
         self.modules.append(module)
@@ -171,10 +228,18 @@ class Course:
         if not self.modules:
             raise InvariantViolationError("Курс должен содержать хотя бы один модуль")
         if any(not module.lessons for module in self.modules):
-            raise InvariantViolationError("В каждом модуле должен быть хотя бы один урок")
-        if not self.slug.value or not self.seo.meta_title or not self.seo.meta_description:
+            raise InvariantViolationError(
+                "В каждом модуле должен быть хотя бы один урок"
+            )
+        if (
+            not self.slug.value
+            or not self.seo.meta_title
+            or not self.seo.meta_description
+        ):
             raise InvariantViolationError("Для публикации обязателен SEO-минимум")
         self.publish_state = PublishState.PUBLISHED
+        self.published_at = changed_at
+        self.published_by_admin_id = changed_by
         self.meta.touch(at=changed_at, actor_id=changed_by)
 
     def archive(self, changed_at: datetime, changed_by: str) -> None:

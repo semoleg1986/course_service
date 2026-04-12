@@ -1,2 +1,1 @@
 """In-memory persistence adapters."""
-
