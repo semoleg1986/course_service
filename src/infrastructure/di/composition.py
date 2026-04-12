@@ -57,6 +57,7 @@ def build_runtime() -> RuntimeContainer:
         course_repository = InMemoryCourseRepository()
         teacher_directory = InMemoryTeacherDirectory()
     else:
+        from src.infrastructure.db.sqlalchemy import models as _models  # noqa: F401
         from src.infrastructure.db.sqlalchemy.access_read_model_sqlalchemy import (
             SqlalchemyAccessReadModel,
         )
