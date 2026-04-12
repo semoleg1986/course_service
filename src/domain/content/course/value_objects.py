@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
+from datetime import datetime
 
 from src.domain.errors import InvariantViolationError
 
@@ -59,3 +60,22 @@ class SeoMetadata:
             raise InvariantViolationError("meta_description слишком длинный")
         if self.robots not in {"index", "noindex"}:
             raise InvariantViolationError("robots должен быть index или noindex")
+
+
+@dataclass(frozen=True, slots=True)
+class CourseSchedule:
+    """
+    Расписание курса.
+
+    :param starts_at: Дата и время старта курса.
+    :type starts_at: datetime
+    :param duration_days: Продолжительность в днях.
+    :type duration_days: int
+    """
+
+    starts_at: datetime
+    duration_days: int
+
+    def __post_init__(self) -> None:
+        if self.duration_days <= 0:
+            raise InvariantViolationError("duration_days должен быть больше 0")

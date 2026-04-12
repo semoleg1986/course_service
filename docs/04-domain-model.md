@@ -43,6 +43,11 @@ src/domain/
 
 ### `Course` (Aggregate Root)
 Владеет иерархией module/lesson, состоянием публикации, ownership и ограничениями контента.
+Дополнительно содержит доменные поля:
+- `teacher_id` (источник истины — `users_service`);
+- `schedule.starts_at`;
+- `schedule.duration_days`;
+- расчетные метрики `lessons_total` и `estimated_duration_hours` (правило: 1 урок = 1 час).
 
 ### `Enrollment` (Aggregate Root)
 Владеет состоянием участия ученика и прогрессом для пары `(course_id, student_id)`.

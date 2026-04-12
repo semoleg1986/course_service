@@ -6,7 +6,7 @@ from src.domain.content.course.entity import Course, Lesson, Module
 from src.domain.delivery.access_grant.entity import AccessGrant
 from src.domain.delivery.enrollment.entity import Enrollment
 from src.domain.errors import InvariantViolationError
-from src.domain.content.course.value_objects import CourseSlug, SeoMetadata
+from src.domain.content.course.value_objects import CourseSchedule, CourseSlug, SeoMetadata
 from src.domain.delivery.access_grant.value_objects import PaymentConfirmation
 
 
@@ -14,7 +14,9 @@ def _course_with_single_lesson(now: datetime) -> Course:
     course = Course.create(
         course_id="course-1",
         title="Math 1",
+        teacher_id="teacher-1",
         slug=CourseSlug("math-1"),
+        schedule=CourseSchedule(starts_at=now, duration_days=30),
         seo=SeoMetadata(meta_title="Math 1", meta_description="Math course"),
         created_at=now,
         created_by="teacher-1",
@@ -41,7 +43,9 @@ def test_publish_requires_module_with_lesson() -> None:
     course = Course.create(
         course_id="course-1",
         title="Math 1",
+        teacher_id="teacher-1",
         slug=CourseSlug("math-1"),
+        schedule=CourseSchedule(starts_at=now, duration_days=30),
         seo=SeoMetadata(meta_title="Math 1", meta_description="Math course"),
         created_at=now,
         created_by="teacher-1",
@@ -125,3 +129,11 @@ def test_meta_version_increments_on_mutation() -> None:
     )
 
     assert grant.meta.version == v1 + 1
+
+
+def test_course_lessons_total_equals_estimated_hours() -> None:
+    now = datetime.now(UTC)
+    course = _course_with_single_lesson(now)
+
+    assert course.lessons_total == 1
+    assert course.estimated_duration_hours == 1

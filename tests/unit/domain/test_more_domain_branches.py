@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 import pytest
 
 from src.domain.content.course.entity import Course, Lesson, Module
-from src.domain.content.course.value_objects import CourseSlug, SeoMetadata
+from src.domain.content.course.value_objects import CourseSchedule, CourseSlug, SeoMetadata
 from src.domain.delivery.access_grant.entity import AccessGrant
 from src.domain.delivery.access_grant.value_objects import PaymentConfirmation
 from src.domain.delivery.enrollment.entity import Enrollment
@@ -21,7 +21,9 @@ def _published_course(now: datetime) -> Course:
     course = Course.create(
         course_id="course-1",
         title="Math",
+        teacher_id="teacher-1",
         slug=CourseSlug("math"),
+        schedule=CourseSchedule(starts_at=now, duration_days=45),
         seo=SeoMetadata(meta_title="Math", meta_description="Math desc"),
         created_at=now,
         created_by="teacher-1",
@@ -57,6 +59,9 @@ def test_course_seo_value_object_validation() -> None:
         SeoMetadata(meta_title="ok", meta_description="x" * 161)
     with pytest.raises(InvariantViolationError):
         SeoMetadata(meta_title="ok", meta_description="desc", robots="nofollow")
+
+    with pytest.raises(InvariantViolationError):
+        CourseSchedule(starts_at=_now(), duration_days=0)
 
 
 def test_access_grant_reject_revoke_and_guards() -> None:

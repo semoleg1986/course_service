@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 import pytest
 
 from src.domain.content.course.entity import Course, Lesson, Module
-from src.domain.content.course.value_objects import CourseSlug, SeoMetadata
+from src.domain.content.course.value_objects import CourseSchedule, CourseSlug, SeoMetadata
 from src.domain.delivery.access_grant.entity import AccessGrant
 from src.domain.delivery.access_grant.value_objects import PaymentConfirmation
 from src.domain.delivery.enrollment.entity import Enrollment
@@ -20,7 +20,9 @@ def _course(now: datetime) -> Course:
     course = Course.create(
         course_id="course-1",
         title="Math",
+        teacher_id="teacher-1",
         slug=CourseSlug("math"),
+        schedule=CourseSchedule(starts_at=now, duration_days=21),
         seo=SeoMetadata(meta_title="Math", meta_description="Desc"),
         created_at=now,
         created_by="teacher-1",

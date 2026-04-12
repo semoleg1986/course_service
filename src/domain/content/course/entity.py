@@ -6,7 +6,7 @@ from datetime import datetime
 from src.domain.errors import InvariantViolationError
 from src.domain.shared.entity import EntityMeta
 from src.domain.shared.statuses import PublishState
-from .value_objects import CourseSlug, SeoMetadata
+from .value_objects import CourseSchedule, CourseSlug, SeoMetadata
 
 
 @dataclass(slots=True)
@@ -92,8 +92,12 @@ class Course:
     :type course_id: str
     :param title: Название курса.
     :type title: str
+    :param teacher_id: Идентификатор преподавателя (account/user id из users_service).
+    :type teacher_id: str
     :param slug: SEO slug курса.
     :type slug: CourseSlug
+    :param schedule: Расписание курса.
+    :type schedule: CourseSchedule
     :param seo: SEO-метаданные.
     :type seo: SeoMetadata
     :param meta: Технические метаданные агрегата.
@@ -106,7 +110,9 @@ class Course:
 
     course_id: str
     title: str
+    teacher_id: str
     slug: CourseSlug
+    schedule: CourseSchedule
     seo: SeoMetadata
     meta: EntityMeta
     publish_state: PublishState = PublishState.DRAFT
@@ -117,19 +123,39 @@ class Course:
         cls,
         course_id: str,
         title: str,
+        teacher_id: str,
         slug: CourseSlug,
+        schedule: CourseSchedule,
         seo: SeoMetadata,
         created_at: datetime,
         created_by: str,
     ) -> "Course":
         """Создать новый курс."""
+        if not teacher_id.strip():
+            raise InvariantViolationError("teacher_id обязателен")
         return cls(
             course_id=course_id,
             title=title,
+            teacher_id=teacher_id,
             slug=slug,
+            schedule=schedule,
             seo=seo,
             meta=EntityMeta.create(at=created_at, actor_id=created_by),
         )
+
+    @property
+    def lessons_total(self) -> int:
+        """Общее число уроков в курсе."""
+        return sum(len(module.lessons) for module in self.modules)
+
+    @property
+    def estimated_duration_hours(self) -> int:
+        """
+        Расчетная длительность курса в часах.
+
+        Бизнес-правило: 1 урок = 1 час.
+        """
+        return self.lessons_total
 
     def add_module(self, module: Module, changed_at: datetime, changed_by: str) -> None:
         """Добавить модуль в курс."""

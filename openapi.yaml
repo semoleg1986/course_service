@@ -760,6 +760,12 @@ components:
         due_at:
           type: string
           format: date-time
+        starts_at:
+          type: string
+          format: date-time
+        duration_days:
+          type: integer
+          minimum: 1
 
     SeoMetadata:
       type: object
@@ -782,15 +788,24 @@ components:
 
     CreateCourseRequest:
       type: object
-      required: [title]
+      required: [title, teacher_id, starts_at, duration_days]
       properties:
         title:
           type: string
+        teacher_id:
+          type: string
+          format: uuid
         slug:
           type: string
           pattern: '^[a-z0-9]+(?:-[a-z0-9]+)*$'
         description:
           type: string
+        starts_at:
+          type: string
+          format: date-time
+        duration_days:
+          type: integer
+          minimum: 1
         schedule:
           $ref: '#/components/schemas/ScheduleWindow'
         seo:
@@ -887,17 +902,32 @@ components:
 
     CourseResponse:
       type: object
-      required: [course_id, title, publish_state]
+      required: [course_id, title, teacher_id, starts_at, duration_days, lessons_total, estimated_duration_hours, publish_state]
       properties:
         course_id:
           type: string
           format: uuid
         title:
           type: string
+        teacher_id:
+          type: string
+          format: uuid
         slug:
           type: string
         description:
           type: string
+        starts_at:
+          type: string
+          format: date-time
+        duration_days:
+          type: integer
+          minimum: 1
+        lessons_total:
+          type: integer
+          minimum: 0
+        estimated_duration_hours:
+          type: integer
+          minimum: 0
         publish_state:
           $ref: '#/components/schemas/PublishState'
         seo:
@@ -905,7 +935,7 @@ components:
 
     PublicCourseResponse:
       type: object
-      required: [course_id, slug, title, publish_state]
+      required: [course_id, slug, title, teacher_id, starts_at, duration_days, lessons_total, estimated_duration_hours, publish_state]
       properties:
         course_id:
           type: string
@@ -914,8 +944,23 @@ components:
           type: string
         title:
           type: string
+        teacher_id:
+          type: string
+          format: uuid
         description:
           type: string
+        starts_at:
+          type: string
+          format: date-time
+        duration_days:
+          type: integer
+          minimum: 1
+        lessons_total:
+          type: integer
+          minimum: 0
+        estimated_duration_hours:
+          type: integer
+          minimum: 0
         publish_state:
           type: string
           enum: [published]
