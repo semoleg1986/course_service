@@ -38,3 +38,12 @@ class CourseAccessDecisionResponse(BaseModel):
     grant_status: str | None = None
     enrollment_status: str | None = None
     checked_at: datetime
+
+
+class CoursePaymentSnapshotResponse(BaseModel):
+    """Response платежного снапшота курса для межсервисного вызова."""
+
+    course_id: str
+    price: float
+    currency: str
+    access_ttl_days: int | None = None

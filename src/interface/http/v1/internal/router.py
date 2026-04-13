@@ -7,11 +7,14 @@ from dataclasses import asdict
 from fastapi import APIRouter, Depends, Header, HTTPException
 
 from src.application.access.queries.dto import CheckCourseAccessQuery
+from src.application.courses.queries.dto import GetCourseByIdQuery
+from src.domain.errors import NotFoundError
 from src.interface.http.common.actor import HttpActor, get_http_actor
 from src.interface.http.v1.schemas.internal import (
     CourseAccessByTokenRequest,
     CourseAccessCheckRequest,
     CourseAccessDecisionResponse,
+    CoursePaymentSnapshotResponse,
 )
 from src.interface.http.wiring import get_facade, get_service_token
 
@@ -64,3 +67,39 @@ def check_course_access_by_token(
         )
     )
     return CourseAccessDecisionResponse(**asdict(result))
+
+
+@router.get(
+    "/courses/{course_id}/payment-snapshot",
+    response_model=CoursePaymentSnapshotResponse,
+)
+def get_course_payment_snapshot(
+    course_id: str,
+    service_token: str | None = Header(default=None, alias="X-Service-Token"),
+    expected_token: str = Depends(get_service_token),
+    facade=Depends(get_facade),
+) -> CoursePaymentSnapshotResponse:
+    """Возвращает минимальный платежный снапшот курса для payments_service."""
+
+    if not service_token:
+        raise HTTPException(status_code=401, detail="Требуется X-Service-Token.")
+    if service_token != expected_token:
+        raise HTTPException(status_code=401, detail="Некорректный X-Service-Token.")
+
+    try:
+        result = facade.query(
+            GetCourseByIdQuery(
+                course_id=course_id,
+                actor_id="internal-course-service",
+                actor_roles=["admin"],
+            )
+        )
+    except NotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Курс не найден.") from exc
+
+    return CoursePaymentSnapshotResponse(
+        course_id=result.course_id,
+        price=result.price,
+        currency=result.currency,
+        access_ttl_days=result.access_ttl_days,
+    )
