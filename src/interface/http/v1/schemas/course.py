@@ -73,6 +73,20 @@ class UpdateCourseRequest(BaseModel):
     seo: SeoPayload | None = None
 
 
+class AddModuleRequest(BaseModel):
+    """Запрос добавления модуля в курс."""
+
+    module_id: str | None = None
+    title: str
+
+
+class AddLessonRequest(BaseModel):
+    """Запрос добавления урока в модуль."""
+
+    lesson_id: str | None = None
+    title: str
+
+
 class SeoResponse(BaseModel):
     """SEO поля курса в response."""
 

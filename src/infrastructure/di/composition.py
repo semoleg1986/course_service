@@ -9,12 +9,20 @@ from src.application.access.handlers.check_course_access_handler import (
 )
 from src.application.access.queries.dto import CheckCourseAccessQuery
 from src.application.courses.commands.dto import (
+    AddLessonCommand,
+    AddModuleCommand,
+    ArchiveCourseCommand,
     CreateCourseCommand,
+    PublishCourseCommand,
     UpdateCourseCommand,
 )
 from src.application.courses.handlers.manage_course_handlers import (
+    AddLessonHandler,
+    AddModuleHandler,
+    ArchiveCourseHandler,
     CreateCourseHandler,
     GetCourseByIdHandler,
+    PublishCourseHandler,
     UpdateCourseHandler,
 )
 from src.application.courses.queries.dto import GetCourseByIdQuery
@@ -106,6 +114,22 @@ def build_runtime() -> RuntimeContainer:
             clock=clock,
             teacher_directory=teacher_directory,
         ),
+    )
+    facade.register_command_handler(
+        AddModuleCommand,
+        AddModuleHandler(repository=course_repository, clock=clock),
+    )
+    facade.register_command_handler(
+        AddLessonCommand,
+        AddLessonHandler(repository=course_repository, clock=clock),
+    )
+    facade.register_command_handler(
+        PublishCourseCommand,
+        PublishCourseHandler(repository=course_repository, clock=clock),
+    )
+    facade.register_command_handler(
+        ArchiveCourseCommand,
+        ArchiveCourseHandler(repository=course_repository, clock=clock),
     )
     facade.register_command_handler(
         UpdateCourseCommand,

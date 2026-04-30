@@ -75,3 +75,44 @@ class UpdateCourseCommand:
     seo_canonical_url: str | None = None
     seo_robots: str | None = None
     seo_og_image_url: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class AddModuleCommand:
+    """Добавляет модуль в курс."""
+
+    course_id: str
+    module_id: str | None
+    title: str
+    actor_id: str
+    actor_roles: list[str]
+
+
+@dataclass(frozen=True, slots=True)
+class AddLessonCommand:
+    """Добавляет урок в модуль курса."""
+
+    course_id: str
+    module_id: str
+    lesson_id: str | None
+    title: str
+    actor_id: str
+    actor_roles: list[str]
+
+
+@dataclass(frozen=True, slots=True)
+class PublishCourseCommand:
+    """Публикует курс."""
+
+    course_id: str
+    actor_id: str
+    actor_roles: list[str]
+
+
+@dataclass(frozen=True, slots=True)
+class ArchiveCourseCommand:
+    """Архивирует курс."""
+
+    course_id: str
+    actor_id: str
+    actor_roles: list[str]

@@ -86,6 +86,34 @@ def test_admin_create_update_get_course_flow() -> None:
     assert fetched["course_id"] == course_id
     assert fetched["teacher_display_name"] == "Иван Иванов"
 
+    publish_without_structure = client.post(f"/v1/admin/courses/{course_id}/publish")
+    assert publish_without_structure.status_code == 400
+
+    add_module = client.post(
+        f"/v1/admin/courses/{course_id}/modules",
+        json={"module_id": "module-1", "title": "Модуль 1"},
+    )
+    assert add_module.status_code == 200, add_module.text
+    assert add_module.json()["modules_count"] == 1
+
+    publish_without_lessons = client.post(f"/v1/admin/courses/{course_id}/publish")
+    assert publish_without_lessons.status_code == 400
+
+    add_lesson = client.post(
+        f"/v1/admin/courses/{course_id}/modules/module-1/lessons",
+        json={"lesson_id": "lesson-1", "title": "Урок 1"},
+    )
+    assert add_lesson.status_code == 200, add_lesson.text
+    assert add_lesson.json()["lessons_total"] == 1
+
+    publish_ok = client.post(f"/v1/admin/courses/{course_id}/publish")
+    assert publish_ok.status_code == 200, publish_ok.text
+    assert publish_ok.json()["publish_state"] == "published"
+
+    archive_ok = client.post(f"/v1/admin/courses/{course_id}/archive")
+    assert archive_ok.status_code == 200, archive_ok.text
+    assert archive_ok.json()["publish_state"] == "archived"
+
 
 def test_teacher_can_create_only_for_self() -> None:
     client = _client_with_actor("teacher-22", ["teacher"])
