@@ -78,6 +78,8 @@ class SqlalchemyCourseRepository:
                     version=module.meta.version,
                 )
                 db.add(module_model)
+            db.flush()
+            for module_position, module in enumerate(course.modules, start=1):
                 for lesson_position, lesson in enumerate(module.lessons, start=1):
                     lesson_model = CourseLessonModel(
                         lesson_id=lesson.lesson_id,
