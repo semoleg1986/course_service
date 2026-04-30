@@ -215,3 +215,156 @@ def test_create_course_uses_users_teacher_directory(
     body = response.json()
     assert body["teacher_id"] == "teacher-cross-1"
     assert body["teacher_display_name"] == "Teacher Cross 1"
+
+
+def test_create_course_requires_bearer_token_in_cross_service_mode(
+    auth_service_base_url: str,
+    users_service_base_url: str,
+) -> None:
+    del auth_service_base_url, users_service_base_url
+    client = TestClient(create_app())
+    response = client.post(
+        "/v1/admin/courses",
+        json={
+            "title": "No token course",
+            "teacher_id": "teacher-any",
+            "starts_at": "2026-09-01T09:00:00Z",
+            "duration_days": 30,
+        },
+    )
+    assert response.status_code == 401
+
+
+def test_teacher_cannot_create_course_for_another_teacher_cross_service(
+    auth_service_base_url: str,
+    users_service_base_url: str,
+) -> None:
+    status, _ = _http_json(
+        "POST",
+        f"{auth_service_base_url}/v1/auth/register",
+        payload={
+            "email": "teacher-cross-owner@example.com",
+            "password": "teacher12345",
+            "default_role": "teacher",
+        },
+    )
+    assert status == 201
+
+    status, login_teacher = _http_json(
+        "POST",
+        f"{auth_service_base_url}/v1/auth/login",
+        payload={
+            "email": "teacher-cross-owner@example.com",
+            "password": "teacher12345",
+            "session_fingerprint": "teacher-cross-owner",
+        },
+    )
+    assert status == 200
+    teacher_access_token = login_teacher["access_token"]
+
+    status, _ = _http_json(
+        "POST",
+        f"{users_service_base_url}/v1/admin/users",
+        payload={
+            "user_id": "teacher-cross-owner",
+            "email": "teacher-cross-owner@example.com",
+            "display_name": "Teacher Cross Owner",
+            "phone": None,
+            "roles": ["teacher"],
+        },
+        headers={"Authorization": f"Bearer {teacher_access_token}"},
+    )
+    assert status == 201
+
+    status, login_admin = _http_json(
+        "POST",
+        f"{auth_service_base_url}/v1/auth/login",
+        payload={
+            "email": "admin@example.com",
+            "password": "admin12345",
+            "session_fingerprint": "admin-cross-owner",
+        },
+    )
+    assert status == 200
+    admin_access_token = login_admin["access_token"]
+    status, _ = _http_json(
+        "POST",
+        f"{users_service_base_url}/v1/admin/users",
+        payload={
+            "user_id": "teacher-cross-other",
+            "email": "teacher-cross-other@example.com",
+            "display_name": "Teacher Cross Other",
+            "phone": None,
+            "roles": ["teacher"],
+        },
+        headers={"Authorization": f"Bearer {admin_access_token}"},
+    )
+    assert status == 201
+
+    os.environ["COURSE_USE_INMEMORY"] = "1"
+    os.environ["COURSE_AUTO_CREATE_SCHEMA"] = "0"
+    os.environ["COURSE_AUTH_JWKS_URL"] = (
+        f"{auth_service_base_url}/.well-known/jwks.json"
+    )
+    os.environ["COURSE_AUTH_ISSUER"] = "auth_service"
+    os.environ["COURSE_AUTH_AUDIENCE"] = _AUDIENCE
+    os.environ["COURSE_USERS_SERVICE_BASE_URL"] = users_service_base_url
+    os.environ["COURSE_USERS_SERVICE_TOKEN"] = _SERVICE_TOKEN
+    os.environ.pop("COURSE_DATABASE_URL", None)
+    get_runtime.cache_clear()
+
+    client = TestClient(create_app())
+    response = client.post(
+        "/v1/admin/courses",
+        json={
+            "title": "Forbidden owner mismatch",
+            "teacher_id": "teacher-cross-other",
+            "starts_at": "2026-09-01T09:00:00Z",
+            "duration_days": 30,
+        },
+        headers={"Authorization": f"Bearer {teacher_access_token}"},
+    )
+    assert response.status_code == 403
+
+
+def test_create_course_returns_409_for_unknown_teacher_cross_service(
+    auth_service_base_url: str,
+    users_service_base_url: str,
+) -> None:
+    status, login = _http_json(
+        "POST",
+        f"{auth_service_base_url}/v1/auth/login",
+        payload={
+            "email": "admin@example.com",
+            "password": "admin12345",
+            "session_fingerprint": "unknown-teacher-cross",
+        },
+    )
+    assert status == 200
+    access_token = login["access_token"]
+
+    os.environ["COURSE_USE_INMEMORY"] = "1"
+    os.environ["COURSE_AUTO_CREATE_SCHEMA"] = "0"
+    os.environ["COURSE_AUTH_JWKS_URL"] = (
+        f"{auth_service_base_url}/.well-known/jwks.json"
+    )
+    os.environ["COURSE_AUTH_ISSUER"] = "auth_service"
+    os.environ["COURSE_AUTH_AUDIENCE"] = _AUDIENCE
+    os.environ["COURSE_USERS_SERVICE_BASE_URL"] = users_service_base_url
+    os.environ["COURSE_USERS_SERVICE_TOKEN"] = _SERVICE_TOKEN
+    os.environ.pop("COURSE_DATABASE_URL", None)
+    get_runtime.cache_clear()
+
+    client = TestClient(create_app())
+    response = client.post(
+        "/v1/admin/courses",
+        json={
+            "title": "Unknown teacher",
+            "teacher_id": "teacher-missing-404",
+            "starts_at": "2026-09-01T09:00:00Z",
+            "duration_days": 30,
+        },
+        headers={"Authorization": f"Bearer {access_token}"},
+    )
+    assert response.status_code == 409
+    assert "teacher_id не найден" in response.json()["detail"]
