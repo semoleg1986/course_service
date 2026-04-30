@@ -78,6 +78,9 @@ class AddModuleRequest(BaseModel):
 
     module_id: str | None = None
     title: str
+    description: str | None = None
+    is_required: bool = True
+    released_at: datetime | None = None
 
 
 class AddLessonRequest(BaseModel):
@@ -85,6 +88,35 @@ class AddLessonRequest(BaseModel):
 
     lesson_id: str | None = None
     title: str
+    description: str | None = None
+    content_type: str = Field(default="video")
+    content_ref: str | None = None
+    duration_minutes: int | None = Field(default=None, ge=1)
+    is_preview: bool = False
+    released_at: datetime | None = None
+
+
+class UpdateModuleRequest(BaseModel):
+    """Запрос обновления модуля."""
+
+    title: str | None = None
+    description: str | None = None
+    is_required: bool | None = None
+    released_at: datetime | None = None
+    status: str | None = None
+
+
+class UpdateLessonRequest(BaseModel):
+    """Запрос обновления урока."""
+
+    title: str | None = None
+    description: str | None = None
+    content_type: str | None = None
+    content_ref: str | None = None
+    duration_minutes: int | None = Field(default=None, ge=1)
+    is_preview: bool | None = None
+    released_at: datetime | None = None
+    status: str | None = None
 
 
 class SeoResponse(BaseModel):

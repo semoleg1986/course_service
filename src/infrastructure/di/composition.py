@@ -15,6 +15,8 @@ from src.application.courses.commands.dto import (
     CreateCourseCommand,
     PublishCourseCommand,
     UpdateCourseCommand,
+    UpdateLessonCommand,
+    UpdateModuleCommand,
 )
 from src.application.courses.handlers.manage_course_handlers import (
     AddLessonHandler,
@@ -24,6 +26,8 @@ from src.application.courses.handlers.manage_course_handlers import (
     GetCourseByIdHandler,
     PublishCourseHandler,
     UpdateCourseHandler,
+    UpdateLessonHandler,
+    UpdateModuleHandler,
 )
 from src.application.courses.queries.dto import GetCourseByIdQuery
 from src.application.facade.application_facade import ApplicationFacade
@@ -130,6 +134,14 @@ def build_runtime() -> RuntimeContainer:
     facade.register_command_handler(
         ArchiveCourseCommand,
         ArchiveCourseHandler(repository=course_repository, clock=clock),
+    )
+    facade.register_command_handler(
+        UpdateModuleCommand,
+        UpdateModuleHandler(repository=course_repository, clock=clock),
+    )
+    facade.register_command_handler(
+        UpdateLessonCommand,
+        UpdateLessonHandler(repository=course_repository, clock=clock),
     )
     facade.register_command_handler(
         UpdateCourseCommand,

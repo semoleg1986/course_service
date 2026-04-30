@@ -106,6 +106,21 @@ def test_admin_create_update_get_course_flow() -> None:
     assert add_lesson.status_code == 200, add_lesson.text
     assert add_lesson.json()["lessons_total"] == 1
 
+    publish_still_blocked = client.post(f"/v1/admin/courses/{course_id}/publish")
+    assert publish_still_blocked.status_code == 400
+
+    module_publish = client.patch(
+        f"/v1/admin/courses/{course_id}/modules/module-1",
+        json={"status": "published"},
+    )
+    assert module_publish.status_code == 200, module_publish.text
+
+    lesson_publish = client.patch(
+        f"/v1/admin/courses/{course_id}/modules/module-1/lessons/lesson-1",
+        json={"status": "published", "duration_minutes": 45, "content_type": "video"},
+    )
+    assert lesson_publish.status_code == 200, lesson_publish.text
+
     publish_ok = client.post(f"/v1/admin/courses/{course_id}/publish")
     assert publish_ok.status_code == 200, publish_ok.text
     assert publish_ok.json()["publish_state"] == "published"

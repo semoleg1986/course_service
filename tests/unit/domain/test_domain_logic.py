@@ -39,6 +39,27 @@ def _course_with_single_lesson(now: datetime) -> Course:
         created_by="teacher-1",
     )
     module.add_lesson(lesson, changed_at=now, changed_by="teacher-1")
+    module.update(
+        title=None,
+        description=None,
+        is_required=None,
+        released_at=None,
+        status="published",
+        changed_at=now,
+        changed_by="teacher-1",
+    )
+    lesson.update(
+        title=None,
+        description=None,
+        content_type=None,
+        content_ref=None,
+        duration_minutes=None,
+        is_preview=None,
+        released_at=None,
+        status="published",
+        changed_at=now,
+        changed_by="teacher-1",
+    )
     course.add_module(module, changed_at=now, changed_by="teacher-1")
     return course
 

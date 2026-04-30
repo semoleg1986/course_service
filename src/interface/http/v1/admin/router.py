@@ -14,6 +14,8 @@ from src.application.courses.commands.dto import (
     CreateCourseCommand,
     PublishCourseCommand,
     UpdateCourseCommand,
+    UpdateLessonCommand,
+    UpdateModuleCommand,
 )
 from src.application.courses.queries.dto import GetCourseByIdQuery
 from src.domain.errors import AccessDeniedError, InvariantViolationError, NotFoundError
@@ -25,6 +27,8 @@ from src.interface.http.v1.schemas.course import (
     CreateCourseRequest,
     SeoResponse,
     UpdateCourseRequest,
+    UpdateLessonRequest,
+    UpdateModuleRequest,
 )
 from src.interface.http.wiring import get_facade
 
@@ -194,6 +198,9 @@ def add_module(
                 course_id=course_id,
                 module_id=payload.module_id,
                 title=payload.title,
+                description=payload.description,
+                is_required=payload.is_required,
+                released_at=payload.released_at,
                 actor_id=actor.actor_id,
                 actor_roles=actor.roles,
             )
@@ -226,6 +233,12 @@ def add_lesson(
                 module_id=module_id,
                 lesson_id=payload.lesson_id,
                 title=payload.title,
+                description=payload.description,
+                content_type=payload.content_type,
+                content_ref=payload.content_ref,
+                duration_minutes=payload.duration_minutes,
+                is_preview=payload.is_preview,
+                released_at=payload.released_at,
                 actor_id=actor.actor_id,
                 actor_roles=actor.roles,
             )
@@ -278,6 +291,80 @@ def archive_course(
                 course_id=course_id,
                 actor_id=actor.actor_id,
                 actor_roles=actor.roles,
+            )
+        )
+    except NotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except AccessDeniedError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+    except InvariantViolationError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return _to_course_response(result)
+
+
+@router.patch("/courses/{course_id}/modules/{module_id}", response_model=CourseResponse)
+def update_module(
+    course_id: str,
+    module_id: str,
+    payload: UpdateModuleRequest,
+    actor: HttpActor = Depends(get_http_actor),
+    facade=Depends(get_facade),
+) -> CourseResponse:
+    """Обновляет модуль курса."""
+
+    try:
+        result = facade.execute(
+            UpdateModuleCommand(
+                course_id=course_id,
+                module_id=module_id,
+                actor_id=actor.actor_id,
+                actor_roles=actor.roles,
+                title=payload.title,
+                description=payload.description,
+                is_required=payload.is_required,
+                released_at=payload.released_at,
+                status=payload.status,
+            )
+        )
+    except NotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except AccessDeniedError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+    except InvariantViolationError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return _to_course_response(result)
+
+
+@router.patch(
+    "/courses/{course_id}/modules/{module_id}/lessons/{lesson_id}",
+    response_model=CourseResponse,
+)
+def update_lesson(
+    course_id: str,
+    module_id: str,
+    lesson_id: str,
+    payload: UpdateLessonRequest,
+    actor: HttpActor = Depends(get_http_actor),
+    facade=Depends(get_facade),
+) -> CourseResponse:
+    """Обновляет урок курса."""
+
+    try:
+        result = facade.execute(
+            UpdateLessonCommand(
+                course_id=course_id,
+                module_id=module_id,
+                lesson_id=lesson_id,
+                actor_id=actor.actor_id,
+                actor_roles=actor.roles,
+                title=payload.title,
+                description=payload.description,
+                content_type=payload.content_type,
+                content_ref=payload.content_ref,
+                duration_minutes=payload.duration_minutes,
+                is_preview=payload.is_preview,
+                released_at=payload.released_at,
+                status=payload.status,
             )
         )
     except NotFoundError as exc:

@@ -14,6 +14,8 @@ from src.application.courses.commands.dto import (
     CreateCourseCommand,
     PublishCourseCommand,
     UpdateCourseCommand,
+    UpdateLessonCommand,
+    UpdateModuleCommand,
 )
 from src.application.courses.queries.dto import GetCourseByIdQuery
 from src.application.ports.clock import Clock
@@ -333,6 +335,9 @@ class AddModuleHandler:
         module = Module.create(
             module_id=(command.module_id or str(uuid4())),
             title=command.title,
+            description=command.description,
+            is_required=command.is_required,
+            released_at=command.released_at,
             created_at=self._clock.now(),
             created_by=command.actor_id,
         )
@@ -371,6 +376,12 @@ class AddLessonHandler:
         lesson = Lesson.create(
             lesson_id=(command.lesson_id or str(uuid4())),
             title=command.title,
+            description=command.description,
+            content_type=command.content_type,
+            content_ref=command.content_ref,
+            duration_minutes=command.duration_minutes,
+            is_preview=command.is_preview,
+            released_at=command.released_at,
             created_at=self._clock.now(),
             created_by=command.actor_id,
         )
@@ -428,5 +439,86 @@ class ArchiveCourseHandler:
             raise AccessDeniedError("Архивировать курс может только owner/admin.")
 
         course.archive(changed_at=self._clock.now(), changed_by=command.actor_id)
+        self._repository.save(course)
+        return to_course_result(course)
+
+
+class UpdateModuleHandler:
+    """Обновляет модуль курса."""
+
+    def __init__(self, *, repository: CourseRepository, clock: Clock) -> None:
+        self._repository = repository
+        self._clock = clock
+
+    def __call__(self, command: UpdateModuleCommand) -> CourseResult:
+        _ensure_admin_or_teacher(command.actor_roles)
+        course = self._repository.get(command.course_id)
+        if course is None:
+            raise NotFoundError("Курс не найден.")
+        role_set = {
+            role.strip().lower() for role in command.actor_roles if role.strip()
+        }
+        if "admin" not in role_set and course.teacher_id != command.actor_id:
+            raise AccessDeniedError("Обновлять модуль может только owner/admin.")
+        module = next(
+            (m for m in course.modules if m.module_id == command.module_id), None
+        )
+        if module is None:
+            raise NotFoundError("Модуль не найден.")
+        module.update(
+            title=command.title,
+            description=command.description,
+            is_required=command.is_required,
+            released_at=command.released_at,
+            status=command.status,
+            changed_at=self._clock.now(),
+            changed_by=command.actor_id,
+        )
+        course.meta.touch(at=self._clock.now(), actor_id=command.actor_id)
+        self._repository.save(course)
+        return to_course_result(course)
+
+
+class UpdateLessonHandler:
+    """Обновляет урок курса."""
+
+    def __init__(self, *, repository: CourseRepository, clock: Clock) -> None:
+        self._repository = repository
+        self._clock = clock
+
+    def __call__(self, command: UpdateLessonCommand) -> CourseResult:
+        _ensure_admin_or_teacher(command.actor_roles)
+        course = self._repository.get(command.course_id)
+        if course is None:
+            raise NotFoundError("Курс не найден.")
+        role_set = {
+            role.strip().lower() for role in command.actor_roles if role.strip()
+        }
+        if "admin" not in role_set and course.teacher_id != command.actor_id:
+            raise AccessDeniedError("Обновлять урок может только owner/admin.")
+        module = next(
+            (m for m in course.modules if m.module_id == command.module_id), None
+        )
+        if module is None:
+            raise NotFoundError("Модуль не найден.")
+        lesson = next(
+            (l for l in module.lessons if l.lesson_id == command.lesson_id), None
+        )
+        if lesson is None:
+            raise NotFoundError("Урок не найден.")
+        lesson.update(
+            title=command.title,
+            description=command.description,
+            content_type=command.content_type,
+            content_ref=command.content_ref,
+            duration_minutes=command.duration_minutes,
+            is_preview=command.is_preview,
+            released_at=command.released_at,
+            status=command.status,
+            changed_at=self._clock.now(),
+            changed_by=command.actor_id,
+        )
+        module.meta.touch(at=self._clock.now(), actor_id=command.actor_id)
+        course.meta.touch(at=self._clock.now(), actor_id=command.actor_id)
         self._repository.save(course)
         return to_course_result(course)

@@ -33,8 +33,28 @@ def _course(now: datetime) -> Course:
         created_by="teacher-1",
     )
     module = Module.create("m-1", "Module", now, "teacher-1")
-    module.add_lesson(
-        Lesson.create("l-1", "Lesson", now, "teacher-1"), now, "teacher-1"
+    lesson = Lesson.create("l-1", "Lesson", now, "teacher-1")
+    module.add_lesson(lesson, now, "teacher-1")
+    module.update(
+        title=None,
+        description=None,
+        is_required=None,
+        released_at=None,
+        status="published",
+        changed_at=now,
+        changed_by="teacher-1",
+    )
+    lesson.update(
+        title=None,
+        description=None,
+        content_type=None,
+        content_ref=None,
+        duration_minutes=None,
+        is_preview=None,
+        released_at=None,
+        status="published",
+        changed_at=now,
+        changed_by="teacher-1",
     )
     course.add_module(module, now, "teacher-1")
     return course

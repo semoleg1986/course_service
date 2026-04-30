@@ -84,6 +84,9 @@ class AddModuleCommand:
     course_id: str
     module_id: str | None
     title: str
+    description: str | None
+    is_required: bool
+    released_at: datetime | None
     actor_id: str
     actor_roles: list[str]
 
@@ -96,8 +99,48 @@ class AddLessonCommand:
     module_id: str
     lesson_id: str | None
     title: str
+    description: str | None
+    content_type: str
+    content_ref: str | None
+    duration_minutes: int | None
+    is_preview: bool
+    released_at: datetime | None
     actor_id: str
     actor_roles: list[str]
+
+
+@dataclass(frozen=True, slots=True)
+class UpdateModuleCommand:
+    """Обновляет модуль курса."""
+
+    course_id: str
+    module_id: str
+    actor_id: str
+    actor_roles: list[str]
+    title: str | None = None
+    description: str | None = None
+    is_required: bool | None = None
+    released_at: datetime | None = None
+    status: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class UpdateLessonCommand:
+    """Обновляет урок курса."""
+
+    course_id: str
+    module_id: str
+    lesson_id: str
+    actor_id: str
+    actor_roles: list[str]
+    title: str | None = None
+    description: str | None = None
+    content_type: str | None = None
+    content_ref: str | None = None
+    duration_minutes: int | None = None
+    is_preview: bool | None = None
+    released_at: datetime | None = None
+    status: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

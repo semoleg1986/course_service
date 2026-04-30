@@ -138,6 +138,14 @@ class CourseModuleModel(Base):
         index=True,
     )
     title: Mapped[str] = mapped_column(String(255), nullable=False)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    is_required: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    released_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    status: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="draft", index=True
+    )
     position: Mapped[int] = mapped_column(Integer, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False
@@ -163,6 +171,19 @@ class CourseLessonModel(Base):
         index=True,
     )
     title: Mapped[str] = mapped_column(String(255), nullable=False)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    content_type: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="video"
+    )
+    content_ref: Mapped[str | None] = mapped_column(Text, nullable=True)
+    duration_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    is_preview: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    released_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    status: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="draft", index=True
+    )
     position: Mapped[int] = mapped_column(Integer, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False

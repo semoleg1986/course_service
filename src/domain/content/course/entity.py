@@ -32,6 +32,13 @@ class Lesson:
 
     lesson_id: str
     title: str
+    description: str | None
+    content_type: str
+    content_ref: str | None
+    duration_minutes: int | None
+    is_preview: bool
+    released_at: datetime | None
+    status: PublishState
     meta: EntityMeta
 
     @classmethod
@@ -41,13 +48,62 @@ class Lesson:
         title: str,
         created_at: datetime,
         created_by: str,
+        description: str | None = None,
+        content_type: str = "video",
+        content_ref: str | None = None,
+        duration_minutes: int | None = None,
+        is_preview: bool = False,
+        released_at: datetime | None = None,
     ) -> "Lesson":
         """Создать новый урок."""
+        if duration_minutes is not None and duration_minutes < 1:
+            raise InvariantViolationError("duration_minutes должен быть >= 1.")
         return cls(
             lesson_id=lesson_id,
             title=title,
+            description=description,
+            content_type=content_type,
+            content_ref=content_ref,
+            duration_minutes=duration_minutes,
+            is_preview=is_preview,
+            released_at=released_at,
+            status=PublishState.DRAFT,
             meta=EntityMeta.create(at=created_at, actor_id=created_by),
         )
+
+    def update(
+        self,
+        *,
+        title: str | None,
+        description: str | None,
+        content_type: str | None,
+        content_ref: str | None,
+        duration_minutes: int | None,
+        is_preview: bool | None,
+        released_at: datetime | None,
+        status: str | None,
+        changed_at: datetime,
+        changed_by: str,
+    ) -> None:
+        if title is not None:
+            self.title = title
+        if description is not None:
+            self.description = description
+        if content_type is not None:
+            self.content_type = content_type
+        if content_ref is not None:
+            self.content_ref = content_ref
+        if duration_minutes is not None:
+            if duration_minutes < 1:
+                raise InvariantViolationError("duration_minutes должен быть >= 1.")
+            self.duration_minutes = duration_minutes
+        if is_preview is not None:
+            self.is_preview = is_preview
+        if released_at is not None:
+            self.released_at = released_at
+        if status is not None:
+            self.status = PublishState(status)
+        self.meta.touch(at=changed_at, actor_id=changed_by)
 
 
 @dataclass(slots=True)
@@ -67,6 +123,10 @@ class Module:
 
     module_id: str
     title: str
+    description: str | None
+    is_required: bool
+    released_at: datetime | None
+    status: PublishState
     meta: EntityMeta
     lessons: list[Lesson] = field(default_factory=list)
 
@@ -77,17 +137,47 @@ class Module:
         title: str,
         created_at: datetime,
         created_by: str,
+        description: str | None = None,
+        is_required: bool = True,
+        released_at: datetime | None = None,
     ) -> "Module":
         """Создать новый модуль."""
         return cls(
             module_id=module_id,
             title=title,
+            description=description,
+            is_required=is_required,
+            released_at=released_at,
+            status=PublishState.DRAFT,
             meta=EntityMeta.create(at=created_at, actor_id=created_by),
         )
 
     def add_lesson(self, lesson: Lesson, changed_at: datetime, changed_by: str) -> None:
         """Добавить урок в модуль."""
         self.lessons.append(lesson)
+        self.meta.touch(at=changed_at, actor_id=changed_by)
+
+    def update(
+        self,
+        *,
+        title: str | None,
+        description: str | None,
+        is_required: bool | None,
+        released_at: datetime | None,
+        status: str | None,
+        changed_at: datetime,
+        changed_by: str,
+    ) -> None:
+        if title is not None:
+            self.title = title
+        if description is not None:
+            self.description = description
+        if is_required is not None:
+            self.is_required = is_required
+        if released_at is not None:
+            self.released_at = released_at
+        if status is not None:
+            self.status = PublishState(status)
         self.meta.touch(at=changed_at, actor_id=changed_by)
 
 
@@ -227,10 +317,20 @@ class Course:
         """
         if not self.modules:
             raise InvariantViolationError("Курс должен содержать хотя бы один модуль")
-        if any(not module.lessons for module in self.modules):
+        published_modules = [
+            module for module in self.modules if module.status == PublishState.PUBLISHED
+        ]
+        if not published_modules:
             raise InvariantViolationError(
-                "В каждом модуле должен быть хотя бы один урок"
+                "Для публикации нужен хотя бы один published модуль."
             )
+        for module in published_modules:
+            if not any(
+                lesson.status == PublishState.PUBLISHED for lesson in module.lessons
+            ):
+                raise InvariantViolationError(
+                    "В каждом published модуле должен быть хотя бы один published урок."
+                )
         if (
             not self.slug.value
             or not self.seo.meta_title
