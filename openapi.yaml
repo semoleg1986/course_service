@@ -516,12 +516,21 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [items]
+                required: [items, limit, offset]
                 properties:
                   items:
                     type: array
                     items:
                       $ref: '#/components/schemas/CourseProgressItem'
+                  limit:
+                    type: integer
+                    minimum: 1
+                  offset:
+                    type: integer
+                    minimum: 0
+                  status:
+                    type: string
+                    nullable: true
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/AccessDenied' }
         '404': { $ref: '#/components/responses/NotFound' }
@@ -542,12 +551,18 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [items]
+                required: [items, limit, offset]
                 properties:
                   items:
                     type: array
                     items:
                       $ref: '#/components/schemas/CompletedCourseItem'
+                  limit:
+                    type: integer
+                    minimum: 1
+                  offset:
+                    type: integer
+                    minimum: 0
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/AccessDenied' }
         '404': { $ref: '#/components/responses/NotFound' }
@@ -1405,7 +1420,7 @@ components:
 
     CourseProgressItem:
       type: object
-      required: [course_id, title, progress_percent]
+      required: [course_id, title, progress_percent, status]
       properties:
         course_id:
           type: string
@@ -1422,6 +1437,8 @@ components:
         total_lessons:
           type: integer
           minimum: 0
+        status:
+          type: string
 
     CompletedCourseItem:
       type: object

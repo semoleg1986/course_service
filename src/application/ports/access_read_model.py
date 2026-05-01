@@ -16,3 +16,9 @@ class AccessReadModel(Protocol):
 
     def get_enrollment_status(self, course_id: str, student_id: str) -> str | None:
         """Возвращает статус enrollment для пары курс/ученик."""
+
+    def list_access_grants_by_student(self, student_id: str) -> list[tuple[str, str]]:
+        """Возвращает пары (course_id, status) по access grants ученика."""
+
+    def list_enrollments_by_student(self, student_id: str) -> list[tuple[str, str]]:
+        """Возвращает пары (course_id, status) по enrollments ученика."""

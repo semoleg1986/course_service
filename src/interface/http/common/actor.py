@@ -37,7 +37,9 @@ def get_http_actor(
             status_code=401, detail="Некорректный access token."
         ) from exc
 
-    actor_id = str(claims.get("sub", "")).strip()
+    actor_id = (
+        str(claims.get("user_id", "")).strip() or str(claims.get("sub", "")).strip()
+    )
     roles = [str(role).strip() for role in claims.get("roles", []) if str(role).strip()]
     if not actor_id or not roles:
         raise HTTPException(

@@ -20,6 +20,26 @@ class InMemoryAccessReadModel:
     def get_enrollment_status(self, course_id: str, student_id: str) -> str | None:
         return self._enrollment_status.get((course_id, student_id))
 
+    def list_access_grants_by_student(self, student_id: str) -> list[tuple[str, str]]:
+        return sorted(
+            [
+                (course_id, status)
+                for (course_id, sid), status in self._access_grant_status.items()
+                if sid == student_id
+            ],
+            key=lambda item: item[0],
+        )
+
+    def list_enrollments_by_student(self, student_id: str) -> list[tuple[str, str]]:
+        return sorted(
+            [
+                (course_id, status)
+                for (course_id, sid), status in self._enrollment_status.items()
+                if sid == student_id
+            ],
+            key=lambda item: item[0],
+        )
+
     def seed_course_owner(self, course_id: str, owner_account_id: str) -> None:
         """Заполняет read model владельцем курса."""
 

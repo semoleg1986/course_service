@@ -45,3 +45,13 @@ def test_get_http_actor_success() -> None:
     )
     assert actor.actor_id == "acc-1"
     assert actor.roles == ["student"]
+
+
+def test_get_http_actor_prefers_user_id_over_sub() -> None:
+    actor = get_http_actor(
+        authorization="Bearer token",
+        verifier=_Verifier(
+            claims={"sub": "acc-1", "user_id": "user-1", "roles": ["parent"]}
+        ),
+    )
+    assert actor.actor_id == "user-1"

@@ -15,6 +15,7 @@ from src.interface.http.observability import (
 )
 from src.interface.http.v1.admin.router import router as admin_router
 from src.interface.http.v1.internal.router import router as internal_router
+from src.interface.http.v1.parent.router import router as parent_router
 from src.interface.http.wiring import get_runtime
 
 
@@ -36,5 +37,6 @@ def create_app() -> FastAPI:
     register_exception_handlers(app)
     app.include_router(health_router)
     app.include_router(admin_router)
+    app.include_router(parent_router)
     app.include_router(internal_router)
     return app

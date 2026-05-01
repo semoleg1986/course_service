@@ -15,3 +15,26 @@ class CheckCourseAccessQuery:
     student_id: str | None = None
     require_active_grant: bool = True
     require_enrollment: bool = False
+
+
+@dataclass(frozen=True, slots=True)
+class ListParentStudentCourseProgressQuery:
+    """Список прогресса ученика по курсам для родителя."""
+
+    actor_id: str
+    actor_roles: list[str]
+    student_id: str
+    status: str | None = None
+    limit: int = 20
+    offset: int = 0
+
+
+@dataclass(frozen=True, slots=True)
+class ListParentStudentCompletedCoursesQuery:
+    """Список завершенных курсов ученика для родителя."""
+
+    actor_id: str
+    actor_roles: list[str]
+    student_id: str
+    limit: int = 20
+    offset: int = 0

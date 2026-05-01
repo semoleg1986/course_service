@@ -61,3 +61,24 @@ class CourseResult:
     seo_canonical_url: str | None
     seo_robots: str
     seo_og_image_url: str | None
+
+
+@dataclass(frozen=True, slots=True)
+class CourseProgressItemResult:
+    """Прогресс ученика по курсу для parent-view."""
+
+    course_id: str
+    title: str
+    progress_percent: float
+    completed_lessons: int
+    total_lessons: int
+    status: str
+
+
+@dataclass(frozen=True, slots=True)
+class CompletedCourseItemResult:
+    """Завершенный курс ученика для parent-view."""
+
+    course_id: str
+    title: str
+    completed_at: datetime

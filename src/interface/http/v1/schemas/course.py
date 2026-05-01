@@ -165,3 +165,39 @@ class CourseResponse(BaseModel):
     archived_by: str | None
     publish_state: str
     seo: SeoResponse
+
+
+class CourseProgressItemResponse(BaseModel):
+    """Элемент прогресса ученика по курсу."""
+
+    course_id: str
+    title: str
+    progress_percent: float = Field(ge=0, le=100)
+    completed_lessons: int = Field(ge=0)
+    total_lessons: int = Field(ge=0)
+    status: str
+
+
+class CompletedCourseItemResponse(BaseModel):
+    """Элемент завершенного курса ученика."""
+
+    course_id: str
+    title: str
+    completed_at: datetime
+
+
+class CourseProgressListResponse(BaseModel):
+    """Список прогресса ученика по курсам."""
+
+    items: list[CourseProgressItemResponse]
+    limit: int
+    offset: int
+    status: str | None = None
+
+
+class CompletedCourseListResponse(BaseModel):
+    """Список завершенных курсов ученика."""
+
+    items: list[CompletedCourseItemResponse]
+    limit: int
+    offset: int

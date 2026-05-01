@@ -7,7 +7,15 @@ from dataclasses import dataclass
 from src.application.access.handlers.check_course_access_handler import (
     CheckCourseAccessHandler,
 )
-from src.application.access.queries.dto import CheckCourseAccessQuery
+from src.application.access.handlers.parent_progress_handlers import (
+    ListParentStudentCompletedCoursesHandler,
+    ListParentStudentCourseProgressHandler,
+)
+from src.application.access.queries.dto import (
+    CheckCourseAccessQuery,
+    ListParentStudentCompletedCoursesQuery,
+    ListParentStudentCourseProgressQuery,
+)
 from src.application.courses.commands.dto import (
     AddLessonCommand,
     AddModuleCommand,
@@ -37,7 +45,13 @@ from src.infrastructure.clock.system_clock import SystemClock
 from src.infrastructure.config.settings import Settings
 from src.infrastructure.db.inmemory.access_read_model import InMemoryAccessReadModel
 from src.infrastructure.db.inmemory.course_repository import InMemoryCourseRepository
+from src.infrastructure.users.inmemory_parent_student_relation_checker import (
+    InMemoryParentStudentRelationChecker,
+)
 from src.infrastructure.users.inmemory_teacher_directory import InMemoryTeacherDirectory
+from src.infrastructure.users.users_service_parent_student_relation_checker import (
+    UsersServiceParentStudentRelationChecker,
+)
 from src.infrastructure.users.users_service_teacher_directory import (
     UsersServiceTeacherDirectory,
 )
@@ -68,6 +82,7 @@ def build_runtime() -> RuntimeContainer:
         read_model = InMemoryAccessReadModel()
         course_repository = InMemoryCourseRepository()
         teacher_directory = InMemoryTeacherDirectory()
+        relation_checker = InMemoryParentStudentRelationChecker()
     else:
         from src.infrastructure.db.sqlalchemy import models as _models  # noqa: F401
         from src.infrastructure.db.sqlalchemy.access_read_model_sqlalchemy import (
@@ -89,6 +104,11 @@ def build_runtime() -> RuntimeContainer:
         read_model = SqlalchemyAccessReadModel(session_factory)
         course_repository = SqlalchemyCourseRepository(session_factory)
         teacher_directory = UsersServiceTeacherDirectory(
+            base_url=settings.users_service_base_url,
+            service_token=settings.users_service_token,
+            timeout_seconds=settings.users_service_timeout_seconds,
+        )
+        relation_checker = UsersServiceParentStudentRelationChecker(
             base_url=settings.users_service_base_url,
             service_token=settings.users_service_token,
             timeout_seconds=settings.users_service_timeout_seconds,
@@ -158,6 +178,23 @@ def build_runtime() -> RuntimeContainer:
     facade.register_query_handler(
         CheckCourseAccessQuery,
         CheckCourseAccessHandler(read_model=read_model, clock=clock),
+    )
+    facade.register_query_handler(
+        ListParentStudentCourseProgressQuery,
+        ListParentStudentCourseProgressHandler(
+            read_model=read_model,
+            course_repository=course_repository,
+            relation_checker=relation_checker,
+        ),
+    )
+    facade.register_query_handler(
+        ListParentStudentCompletedCoursesQuery,
+        ListParentStudentCompletedCoursesHandler(
+            read_model=read_model,
+            course_repository=course_repository,
+            relation_checker=relation_checker,
+            clock=clock,
+        ),
     )
     return RuntimeContainer(
         facade=facade,

@@ -39,6 +39,32 @@ class SqlalchemyAccessReadModel:
             )
             return db.execute(stmt).scalar_one_or_none()
 
+    def list_access_grants_by_student(self, student_id: str) -> list[tuple[str, str]]:
+        with self._session_factory() as db:
+            stmt = (
+                select(
+                    AccessGrantProjectionModel.course_id,
+                    AccessGrantProjectionModel.status,
+                )
+                .where(AccessGrantProjectionModel.student_id == student_id)
+                .order_by(AccessGrantProjectionModel.course_id.asc())
+            )
+            rows = db.execute(stmt).all()
+            return [(str(course_id), str(status)) for course_id, status in rows]
+
+    def list_enrollments_by_student(self, student_id: str) -> list[tuple[str, str]]:
+        with self._session_factory() as db:
+            stmt = (
+                select(
+                    EnrollmentProjectionModel.course_id,
+                    EnrollmentProjectionModel.status,
+                )
+                .where(EnrollmentProjectionModel.student_id == student_id)
+                .order_by(EnrollmentProjectionModel.course_id.asc())
+            )
+            rows = db.execute(stmt).all()
+            return [(str(course_id), str(status)) for course_id, status in rows]
+
     def seed_course_owner(self, course_id: str, owner_account_id: str) -> None:
         with self._session_factory.begin() as db:
             row = db.get(CourseOwnerProjectionModel, course_id)
