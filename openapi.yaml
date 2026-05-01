@@ -262,6 +262,7 @@ paths:
       operationId: publicGetCourseBySlug
       parameters:
         - $ref: '#/components/parameters/Slug'
+        - $ref: '#/components/parameters/ViewerTimezone'
       responses:
         '200':
           description: Данные опубликованной страницы курса
@@ -270,6 +271,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/PublicCourseResponse'
         '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
 
   /v1/student/courses/{course_id}/enrollments:
     post:
@@ -898,6 +900,10 @@ components:
         starts_at:
           type: string
           format: date-time
+        starts_at_local:
+          type: string
+          format: date-time
+          nullable: true
         duration_days:
           type: integer
           minimum: 1
@@ -1259,7 +1265,15 @@ components:
           type: string
           format: date-time
           nullable: true
+        enrollment_opens_at_local:
+          type: string
+          format: date-time
+          nullable: true
         enrollment_closes_at:
+          type: string
+          format: date-time
+          nullable: true
+        enrollment_closes_at_local:
           type: string
           format: date-time
           nullable: true
@@ -1320,6 +1334,9 @@ components:
         publish_state:
           type: string
           enum: [published]
+        viewer_timezone:
+          type: string
+          nullable: true
         seo:
           $ref: '#/components/schemas/SeoMetadata'
         modules:

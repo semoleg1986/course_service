@@ -158,6 +158,14 @@ class SeoResponse(BaseModel):
     og_image_url: str | None = None
 
 
+class PublicCourseModuleResponse(BaseModel):
+    """Краткая структура опубликованного модуля."""
+
+    module_id: str
+    title: str
+    lessons_count: int = Field(ge=0)
+
+
 class CourseResponse(BaseModel):
     """Ответ курса."""
 
@@ -198,6 +206,46 @@ class CourseResponse(BaseModel):
     publish_state: str
     viewer_timezone: str | None = None
     seo: SeoResponse
+
+
+class PublicCourseResponse(BaseModel):
+    """Публичный response опубликованного курса."""
+
+    course_id: str
+    slug: str
+    title: str
+    teacher_id: str
+    teacher_display_name: str | None
+    description: str | None
+    starts_at: datetime
+    starts_at_local: datetime | None = None
+    duration_days: int
+    access_ttl_days: int | None
+    enrollment_opens_at: datetime | None
+    enrollment_opens_at_local: datetime | None = None
+    enrollment_closes_at: datetime | None
+    enrollment_closes_at_local: datetime | None = None
+    price: float
+    currency: str
+    language: str
+    age_min: int | None
+    age_max: int | None
+    level: str
+    tags: list[str]
+    cover_image_url: str | None
+    is_live_enabled: bool
+    live_room_template_id: str | None
+    timezone: str
+    max_students: int | None
+    modules_count: int
+    lessons_total: int
+    estimated_duration_hours: int
+    is_free: bool
+    published_at: datetime | None
+    publish_state: str
+    viewer_timezone: str | None = None
+    seo: SeoResponse
+    modules: list[PublicCourseModuleResponse]
 
 
 class CourseProgressItemResponse(BaseModel):

@@ -5,8 +5,8 @@ from __future__ import annotations
 import re
 from uuid import uuid4
 
-from src.application.common.dto import CourseResult
-from src.application.common.mappers import to_course_result
+from src.application.common.dto import CourseResult, PublicCourseResult
+from src.application.common.mappers import to_course_result, to_public_course_result
 from src.application.courses.commands.dto import (
     AddLessonCommand,
     AddModuleCommand,
@@ -17,7 +17,10 @@ from src.application.courses.commands.dto import (
     UpdateLessonCommand,
     UpdateModuleCommand,
 )
-from src.application.courses.queries.dto import GetCourseByIdQuery
+from src.application.courses.queries.dto import (
+    GetCourseByIdQuery,
+    GetPublishedCourseBySlugQuery,
+)
 from src.application.ports.clock import Clock
 from src.application.ports.teacher_directory import TeacherDirectory
 from src.domain.content.course.entity import Course, Lesson, Module
@@ -31,6 +34,7 @@ from src.domain.content.course.value_objects import (
     SeoMetadata,
 )
 from src.domain.errors import AccessDeniedError, InvariantViolationError, NotFoundError
+from src.domain.shared.statuses import PublishState
 
 _SLUG_CLEANUP = re.compile(r"[^a-z0-9]+")
 
@@ -311,6 +315,19 @@ class GetCourseByIdHandler:
         if "admin" not in role_set and course.teacher_id != query.actor_id:
             raise AccessDeniedError("Просмотр курса разрешен только owner/admin.")
         return to_course_result(course)
+
+
+class GetPublishedCourseBySlugHandler:
+    """Возвращает опубликованный курс по slug."""
+
+    def __init__(self, *, repository: CourseRepository) -> None:
+        self._repository = repository
+
+    def __call__(self, query: GetPublishedCourseBySlugQuery) -> PublicCourseResult:
+        course = self._repository.get_by_slug(query.slug)
+        if course is None or course.publish_state != PublishState.PUBLISHED:
+            raise NotFoundError("Опубликованный курс не найден.")
+        return to_public_course_result(course)
 
 
 class AddModuleHandler:

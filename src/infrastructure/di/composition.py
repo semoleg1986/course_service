@@ -32,12 +32,16 @@ from src.application.courses.handlers.manage_course_handlers import (
     ArchiveCourseHandler,
     CreateCourseHandler,
     GetCourseByIdHandler,
+    GetPublishedCourseBySlugHandler,
     PublishCourseHandler,
     UpdateCourseHandler,
     UpdateLessonHandler,
     UpdateModuleHandler,
 )
-from src.application.courses.queries.dto import GetCourseByIdQuery
+from src.application.courses.queries.dto import (
+    GetCourseByIdQuery,
+    GetPublishedCourseBySlugQuery,
+)
 from src.application.facade.application_facade import ApplicationFacade
 from src.application.ports.access_token_verifier import AccessTokenVerifier
 from src.infrastructure.auth.jwks_access_token_verifier import JwksAccessTokenVerifier
@@ -174,6 +178,10 @@ def build_runtime() -> RuntimeContainer:
     facade.register_query_handler(
         GetCourseByIdQuery,
         GetCourseByIdHandler(repository=course_repository),
+    )
+    facade.register_query_handler(
+        GetPublishedCourseBySlugQuery,
+        GetPublishedCourseBySlugHandler(repository=course_repository),
     )
     facade.register_query_handler(
         CheckCourseAccessQuery,
