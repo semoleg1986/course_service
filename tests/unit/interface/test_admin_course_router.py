@@ -201,3 +201,59 @@ def test_admin_update_course_rejects_naive_enrollment_dates() -> None:
         "enrollment_opens_at должен содержать timezone offset"
         in update_response.json()["detail"]
     )
+
+
+def test_admin_get_course_supports_viewer_timezone_projection() -> None:
+    client = _client_with_actor("admin-1", ["admin"])
+
+    create_response = client.post(
+        "/v1/admin/courses",
+        json={
+            "title": "Timezone Course",
+            "teacher_id": "teacher-1",
+            "starts_at": "2026-09-01T16:00:00+09:00",
+            "duration_days": 30,
+            "enrollment_opens_at": "2026-08-01T10:00:00+09:00",
+            "enrollment_closes_at": "2026-08-20T18:00:00+09:00",
+            "timezone": "Asia/Yakutsk",
+            "slug": "timezone-course",
+        },
+    )
+    assert create_response.status_code == 201, create_response.text
+    course_id = create_response.json()["course_id"]
+
+    get_response = client.get(
+        f"/v1/admin/courses/{course_id}?viewer_timezone=Asia/Tbilisi"
+    )
+    assert get_response.status_code == 200, get_response.text
+    payload = get_response.json()
+    assert payload["viewer_timezone"] == "Asia/Tbilisi"
+    assert payload["starts_at_local"] == "2026-09-01T11:00:00+04:00"
+    assert payload["enrollment_opens_at_local"] == "2026-08-01T05:00:00+04:00"
+    assert payload["enrollment_closes_at_local"] == "2026-08-20T13:00:00+04:00"
+
+
+def test_admin_get_course_rejects_invalid_viewer_timezone() -> None:
+    client = _client_with_actor("admin-1", ["admin"])
+
+    create_response = client.post(
+        "/v1/admin/courses",
+        json={
+            "title": "Viewer TZ Course",
+            "teacher_id": "teacher-1",
+            "starts_at": "2026-09-01T09:00:00Z",
+            "duration_days": 30,
+            "slug": "viewer-tz-course",
+        },
+    )
+    assert create_response.status_code == 201, create_response.text
+    course_id = create_response.json()["course_id"]
+
+    get_response = client.get(
+        f"/v1/admin/courses/{course_id}?viewer_timezone=Bad/Timezone"
+    )
+    assert get_response.status_code == 422
+    assert (
+        "viewer_timezone должен быть корректным IANA timezone"
+        in get_response.json()["detail"]
+    )

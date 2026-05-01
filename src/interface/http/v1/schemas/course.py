@@ -168,10 +168,13 @@ class CourseResponse(BaseModel):
     slug: str
     description: str | None
     starts_at: datetime
+    starts_at_local: datetime | None = None
     duration_days: int
     access_ttl_days: int | None
     enrollment_opens_at: datetime | None
+    enrollment_opens_at_local: datetime | None = None
     enrollment_closes_at: datetime | None
+    enrollment_closes_at_local: datetime | None = None
     price: float
     currency: str
     language: str
@@ -193,6 +196,7 @@ class CourseResponse(BaseModel):
     archived_at: datetime | None
     archived_by: str | None
     publish_state: str
+    viewer_timezone: str | None = None
     seo: SeoResponse
 
 

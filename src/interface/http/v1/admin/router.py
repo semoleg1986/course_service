@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 from dataclasses import asdict
+from datetime import datetime
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from src.application.common.dto import CourseResult
 from src.application.courses.commands.dto import (
@@ -35,7 +37,16 @@ from src.interface.http.wiring import get_facade
 router = APIRouter(prefix="/v1/admin", tags=["admin"])
 
 
-def _to_course_response(result: CourseResult) -> CourseResponse:
+def _to_local_datetime(value: datetime | None, viewer_timezone: str) -> datetime | None:
+    if value is None:
+        return None
+    return value.astimezone(ZoneInfo(viewer_timezone))
+
+
+def _to_course_response(
+    result: CourseResult,
+    viewer_timezone: str | None = None,
+) -> CourseResponse:
     payload = asdict(result)
     seo_payload = {
         "meta_title": result.seo_meta_title,
@@ -53,6 +64,22 @@ def _to_course_response(result: CourseResult) -> CourseResponse:
     ]:
         payload.pop(key, None)
     payload["seo"] = SeoResponse(**seo_payload)
+    payload["viewer_timezone"] = viewer_timezone
+    payload["starts_at_local"] = (
+        _to_local_datetime(result.starts_at, viewer_timezone)
+        if viewer_timezone
+        else None
+    )
+    payload["enrollment_opens_at_local"] = (
+        _to_local_datetime(result.enrollment_opens_at, viewer_timezone)
+        if viewer_timezone
+        else None
+    )
+    payload["enrollment_closes_at_local"] = (
+        _to_local_datetime(result.enrollment_closes_at, viewer_timezone)
+        if viewer_timezone
+        else None
+    )
     return CourseResponse(**payload)
 
 
@@ -165,10 +192,20 @@ def update_course(
 @router.get("/courses/{course_id}", response_model=CourseResponse)
 def get_course(
     course_id: str,
+    viewer_timezone: str | None = Query(default=None),
     actor: HttpActor = Depends(get_http_actor),
     facade=Depends(get_facade),
 ) -> CourseResponse:
     """Возвращает курс по ID."""
+
+    if viewer_timezone is not None:
+        try:
+            ZoneInfo(viewer_timezone)
+        except ZoneInfoNotFoundError as exc:
+            raise HTTPException(
+                status_code=422,
+                detail="viewer_timezone должен быть корректным IANA timezone",
+            ) from exc
 
     try:
         result = facade.query(
@@ -180,7 +217,7 @@ def get_course(
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except AccessDeniedError as exc:
         raise HTTPException(status_code=403, detail=str(exc)) from exc
-    return _to_course_response(result)
+    return _to_course_response(result, viewer_timezone=viewer_timezone)
 
 
 @router.post("/courses/{course_id}/modules", response_model=CourseResponse)
