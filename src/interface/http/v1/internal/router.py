@@ -6,11 +6,14 @@ from dataclasses import asdict
 
 from fastapi import APIRouter, Depends, Header, HTTPException
 
+from src.application.access.commands.dto import ApplyAccessGrantedEventCommand
 from src.application.access.queries.dto import CheckCourseAccessQuery
 from src.application.courses.queries.dto import GetCourseByIdQuery
 from src.domain.errors import NotFoundError
 from src.interface.http.common.actor import HttpActor, get_http_actor
 from src.interface.http.v1.schemas.internal import (
+    AccessGrantedEventRequest,
+    AccessGrantedEventResponse,
     CourseAccessByTokenRequest,
     CourseAccessCheckRequest,
     CourseAccessDecisionResponse,
@@ -102,4 +105,38 @@ def get_course_payment_snapshot(
         price=result.price,
         currency=result.currency,
         access_ttl_days=result.access_ttl_days,
+    )
+
+
+@router.post(
+    "/events/course-access-granted",
+    response_model=AccessGrantedEventResponse,
+)
+def apply_access_granted_event(
+    payload: AccessGrantedEventRequest,
+    service_token: str | None = Header(default=None, alias="X-Service-Token"),
+    expected_token: str = Depends(get_service_token),
+    facade=Depends(get_facade),
+) -> AccessGrantedEventResponse:
+    """Применяет course.access.granted event к access projection с dedup."""
+
+    if not service_token:
+        raise HTTPException(status_code=401, detail="Требуется X-Service-Token.")
+    if service_token != expected_token:
+        raise HTTPException(status_code=401, detail="Некорректный X-Service-Token.")
+
+    applied = facade.execute(
+        ApplyAccessGrantedEventCommand(
+            event_id=payload.event_id,
+            course_id=payload.course_id,
+            student_id=payload.student_id,
+            granted_status=payload.granted_status,
+        )
+    )
+    return AccessGrantedEventResponse(
+        event_id=payload.event_id,
+        applied=applied,
+        course_id=payload.course_id,
+        student_id=payload.student_id,
+        granted_status=payload.granted_status,
     )

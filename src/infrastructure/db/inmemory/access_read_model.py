@@ -10,6 +10,7 @@ class InMemoryAccessReadModel:
         self._course_owner: dict[str, str] = {}
         self._access_grant_status: dict[tuple[str, str], str] = {}
         self._enrollment_status: dict[tuple[str, str], str] = {}
+        self._processed_access_events: set[str] = set()
 
     def get_course_owner(self, course_id: str) -> str | None:
         return self._course_owner.get(course_id)
@@ -58,3 +59,19 @@ class InMemoryAccessReadModel:
         """Заполняет read model статусом enrollment."""
 
         self._enrollment_status[(course_id, student_id)] = status
+
+    def apply_access_granted_event(
+        self,
+        *,
+        event_id: str,
+        course_id: str,
+        student_id: str,
+        granted_status: str,
+    ) -> bool:
+        """Применяет access_granted event с replay-safe dedup."""
+
+        if event_id in self._processed_access_events:
+            return False
+        self._processed_access_events.add(event_id)
+        self._access_grant_status[(course_id, student_id)] = granted_status
+        return True

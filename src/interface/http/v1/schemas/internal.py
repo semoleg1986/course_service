@@ -47,3 +47,22 @@ class CoursePaymentSnapshotResponse(BaseModel):
     price: float
     currency: str
     access_ttl_days: int | None = None
+
+
+class AccessGrantedEventRequest(BaseModel):
+    """Request применения course.access.granted event."""
+
+    event_id: str
+    course_id: str
+    student_id: str
+    granted_status: str = "approved"
+
+
+class AccessGrantedEventResponse(BaseModel):
+    """Response результата применения course.access.granted event."""
+
+    event_id: str
+    applied: bool
+    course_id: str
+    student_id: str
+    granted_status: str

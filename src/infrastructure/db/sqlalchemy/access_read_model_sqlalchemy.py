@@ -9,6 +9,7 @@ from src.infrastructure.db.sqlalchemy.models import (
     AccessGrantProjectionModel,
     CourseOwnerProjectionModel,
     EnrollmentProjectionModel,
+    ProcessedAccessEventModel,
 )
 
 
@@ -117,3 +118,41 @@ class SqlalchemyAccessReadModel:
                 )
             else:
                 row.status = status
+
+    def apply_access_granted_event(
+        self,
+        *,
+        event_id: str,
+        course_id: str,
+        student_id: str,
+        granted_status: str,
+    ) -> bool:
+        with self._session_factory.begin() as db:
+            processed = db.get(ProcessedAccessEventModel, event_id)
+            if processed is not None:
+                return False
+
+            stmt = select(AccessGrantProjectionModel).where(
+                AccessGrantProjectionModel.course_id == course_id,
+                AccessGrantProjectionModel.student_id == student_id,
+            )
+            row = db.execute(stmt).scalar_one_or_none()
+            if row is None:
+                db.add(
+                    AccessGrantProjectionModel(
+                        course_id=course_id,
+                        student_id=student_id,
+                        status=granted_status,
+                    )
+                )
+            else:
+                row.status = granted_status
+
+            db.add(
+                ProcessedAccessEventModel(
+                    event_id=event_id,
+                    course_id=course_id,
+                    student_id=student_id,
+                )
+            )
+            return True

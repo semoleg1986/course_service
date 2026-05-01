@@ -125,6 +125,16 @@ class EnrollmentProjectionModel(Base):
     status: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
 
 
+class ProcessedAccessEventModel(Base):
+    """Replay-safe dedup store для access events."""
+
+    __tablename__ = "processed_access_events"
+
+    event_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    course_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
+    student_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+
+
 class CourseModuleModel(Base):
     """Модуль курса."""
 

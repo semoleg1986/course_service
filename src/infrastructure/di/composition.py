@@ -4,6 +4,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from src.application.access.commands.dto import ApplyAccessGrantedEventCommand
+from src.application.access.handlers.access_event_handlers import (
+    ApplyAccessGrantedEventHandler,
+)
 from src.application.access.handlers.check_course_access_handler import (
     CheckCourseAccessHandler,
 )
@@ -43,6 +47,7 @@ from src.application.courses.queries.dto import (
     GetPublishedCourseBySlugQuery,
 )
 from src.application.facade.application_facade import ApplicationFacade
+from src.application.ports.access_read_model import AccessReadModel
 from src.application.ports.access_token_verifier import AccessTokenVerifier
 from src.infrastructure.auth.jwks_access_token_verifier import JwksAccessTokenVerifier
 from src.infrastructure.clock.system_clock import SystemClock
@@ -68,6 +73,7 @@ class RuntimeContainer:
     facade: ApplicationFacade
     service_token: str
     access_token_verifier: AccessTokenVerifier
+    access_read_model: AccessReadModel
 
 
 def build_runtime() -> RuntimeContainer:
@@ -187,6 +193,10 @@ def build_runtime() -> RuntimeContainer:
         CheckCourseAccessQuery,
         CheckCourseAccessHandler(read_model=read_model, clock=clock),
     )
+    facade.register_command_handler(
+        ApplyAccessGrantedEventCommand,
+        ApplyAccessGrantedEventHandler(read_model=read_model),
+    )
     facade.register_query_handler(
         ListParentStudentCourseProgressQuery,
         ListParentStudentCourseProgressHandler(
@@ -208,4 +218,5 @@ def build_runtime() -> RuntimeContainer:
         facade=facade,
         service_token=settings.service_token,
         access_token_verifier=access_token_verifier,
+        access_read_model=read_model,
     )

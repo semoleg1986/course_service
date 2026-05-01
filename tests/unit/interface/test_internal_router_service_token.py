@@ -85,3 +85,55 @@ def test_internal_course_payment_snapshot_contract() -> None:
     assert body["price"] == 150
     assert body["currency"] == "USD"
     assert body["access_ttl_days"] == 45
+
+
+def test_internal_access_granted_event_is_replay_safe() -> None:
+    client = _client()
+    app = client.app
+    app.dependency_overrides[get_admin_http_actor] = lambda: HttpActor(
+        actor_id="admin-1", roles=["admin"]
+    )
+
+    create = client.post(
+        "/v1/admin/courses",
+        json={
+            "title": "Replay Course",
+            "teacher_id": "teacher-1",
+            "starts_at": "2026-09-01T09:00:00Z",
+            "duration_days": 30,
+        },
+    )
+    assert create.status_code == 201, create.text
+    course_id = create.json()["course_id"]
+
+    first = client.post(
+        "/internal/v1/access/events/course-access-granted",
+        json={
+            "event_id": "evt-1",
+            "course_id": course_id,
+            "student_id": "student-1",
+            "granted_status": "approved",
+        },
+        headers={"X-Service-Token": "svc-token"},
+    )
+    assert first.status_code == 200, first.text
+    assert first.json()["applied"] is True
+
+    second = client.post(
+        "/internal/v1/access/events/course-access-granted",
+        json={
+            "event_id": "evt-1",
+            "course_id": course_id,
+            "student_id": "student-1",
+            "granted_status": "approved",
+        },
+        headers={"X-Service-Token": "svc-token"},
+    )
+    assert second.status_code == 200, second.text
+    assert second.json()["applied"] is False
+
+    runtime = get_runtime()
+    assert (
+        runtime.access_read_model.get_access_grant_status(course_id, "student-1")
+        == "approved"
+    )
