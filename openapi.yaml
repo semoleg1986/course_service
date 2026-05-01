@@ -95,6 +95,7 @@ paths:
         - bearerAuth: []
       parameters:
         - $ref: '#/components/parameters/CourseId'
+        - $ref: '#/components/parameters/ViewerTimezone'
       responses:
         '200':
           description: Курс найден
@@ -509,6 +510,7 @@ paths:
         - bearerAuth: []
       parameters:
         - $ref: '#/components/parameters/StudentId'
+        - $ref: '#/components/parameters/ViewerTimezone'
       responses:
         '200':
           description: Список прогресса ученика по курсам
@@ -531,9 +533,13 @@ paths:
                   status:
                     type: string
                     nullable: true
+                  viewer_timezone:
+                    type: string
+                    nullable: true
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/AccessDenied' }
         '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
 
   /v1/parent/students/{student_id}/courses/completed:
     get:
@@ -544,6 +550,7 @@ paths:
         - bearerAuth: []
       parameters:
         - $ref: '#/components/parameters/StudentId'
+        - $ref: '#/components/parameters/ViewerTimezone'
       responses:
         '200':
           description: Завершенные курсы
@@ -563,9 +570,13 @@ paths:
                   offset:
                     type: integer
                     minimum: 0
+                  viewer_timezone:
+                    type: string
+                    nullable: true
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/AccessDenied' }
         '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
 
   /v1/parent/students/{student_id}/access-grants:
     get:
@@ -663,6 +674,13 @@ components:
       in: path
       required: true
       schema: { type: string, format: uuid }
+    ViewerTimezone:
+      name: viewer_timezone
+      in: query
+      required: false
+      schema:
+        type: string
+      description: IANA timezone пользователя для локальной проекции datetime полей
     Slug:
       name: slug
       in: path
@@ -829,6 +847,10 @@ components:
         starts_at:
           type: string
           format: date-time
+        starts_at_local:
+          type: string
+          format: date-time
+          nullable: true
         duration_days:
           type: integer
           minimum: 1
@@ -1117,7 +1139,15 @@ components:
           type: string
           format: date-time
           nullable: true
+        enrollment_opens_at_local:
+          type: string
+          format: date-time
+          nullable: true
         enrollment_closes_at:
+          type: string
+          format: date-time
+          nullable: true
+        enrollment_closes_at_local:
           type: string
           format: date-time
           nullable: true
@@ -1189,6 +1219,9 @@ components:
           nullable: true
         publish_state:
           $ref: '#/components/schemas/PublishState'
+        viewer_timezone:
+          type: string
+          nullable: true
         seo:
           $ref: '#/components/schemas/SeoMetadata'
 
@@ -1452,6 +1485,10 @@ components:
         completed_at:
           type: string
           format: date-time
+        completed_at_local:
+          type: string
+          format: date-time
+          nullable: true
 
     SubmissionResponse:
       type: object

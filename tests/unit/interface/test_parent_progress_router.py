@@ -51,13 +51,39 @@ def test_parent_completed_courses_endpoint() -> None:
     client = _client_with_actor("parent-1", ["parent"])
 
     response = client.get(
-        "/v1/parent/students/student-1/courses/completed?limit=10&offset=0"
+        "/v1/parent/students/student-1/courses/completed?limit=10&offset=0&viewer_timezone=Asia/Tbilisi"
     )
     assert response.status_code == 200, response.text
     body = response.json()
     assert body["limit"] == 10
     assert body["offset"] == 0
+    assert body["viewer_timezone"] == "Asia/Tbilisi"
     assert isinstance(body["items"], list)
+    if body["items"]:
+        assert body["items"][0]["completed_at_local"] is not None
+
+
+def test_parent_progress_accepts_viewer_timezone() -> None:
+    client = _client_with_actor("parent-1", ["parent"])
+
+    response = client.get(
+        "/v1/parent/students/student-1/courses/progress?viewer_timezone=Asia/Tbilisi"
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["viewer_timezone"] == "Asia/Tbilisi"
+
+
+def test_parent_progress_rejects_invalid_viewer_timezone() -> None:
+    client = _client_with_actor("parent-1", ["parent"])
+
+    response = client.get(
+        "/v1/parent/students/student-1/courses/progress?viewer_timezone=Bad/Timezone"
+    )
+    assert response.status_code == 422, response.text
+    assert (
+        "viewer_timezone должен быть корректным IANA timezone"
+        in response.json()["detail"]
+    )
 
 
 def test_parent_progress_requires_bearer_token() -> None:

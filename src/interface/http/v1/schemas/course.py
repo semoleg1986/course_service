@@ -217,6 +217,7 @@ class CompletedCourseItemResponse(BaseModel):
     course_id: str
     title: str
     completed_at: datetime
+    completed_at_local: datetime | None = None
 
 
 class CourseProgressListResponse(BaseModel):
@@ -226,6 +227,7 @@ class CourseProgressListResponse(BaseModel):
     limit: int
     offset: int
     status: str | None = None
+    viewer_timezone: str | None = None
 
 
 class CompletedCourseListResponse(BaseModel):
@@ -234,3 +236,4 @@ class CompletedCourseListResponse(BaseModel):
     items: list[CompletedCourseItemResponse]
     limit: int
     offset: int
+    viewer_timezone: str | None = None

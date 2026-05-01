@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 from dataclasses import asdict
-from datetime import datetime
-from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
@@ -22,6 +20,10 @@ from src.application.courses.commands.dto import (
 from src.application.courses.queries.dto import GetCourseByIdQuery
 from src.domain.errors import AccessDeniedError, InvariantViolationError, NotFoundError
 from src.interface.http.common.actor import HttpActor, get_http_actor
+from src.interface.http.common.timezone import (
+    to_local_datetime,
+    validate_viewer_timezone,
+)
 from src.interface.http.v1.schemas.course import (
     AddLessonRequest,
     AddModuleRequest,
@@ -35,12 +37,6 @@ from src.interface.http.v1.schemas.course import (
 from src.interface.http.wiring import get_facade
 
 router = APIRouter(prefix="/v1/admin", tags=["admin"])
-
-
-def _to_local_datetime(value: datetime | None, viewer_timezone: str) -> datetime | None:
-    if value is None:
-        return None
-    return value.astimezone(ZoneInfo(viewer_timezone))
 
 
 def _to_course_response(
@@ -66,17 +62,17 @@ def _to_course_response(
     payload["seo"] = SeoResponse(**seo_payload)
     payload["viewer_timezone"] = viewer_timezone
     payload["starts_at_local"] = (
-        _to_local_datetime(result.starts_at, viewer_timezone)
+        to_local_datetime(result.starts_at, viewer_timezone)
         if viewer_timezone
         else None
     )
     payload["enrollment_opens_at_local"] = (
-        _to_local_datetime(result.enrollment_opens_at, viewer_timezone)
+        to_local_datetime(result.enrollment_opens_at, viewer_timezone)
         if viewer_timezone
         else None
     )
     payload["enrollment_closes_at_local"] = (
-        _to_local_datetime(result.enrollment_closes_at, viewer_timezone)
+        to_local_datetime(result.enrollment_closes_at, viewer_timezone)
         if viewer_timezone
         else None
     )
@@ -198,14 +194,7 @@ def get_course(
 ) -> CourseResponse:
     """Возвращает курс по ID."""
 
-    if viewer_timezone is not None:
-        try:
-            ZoneInfo(viewer_timezone)
-        except ZoneInfoNotFoundError as exc:
-            raise HTTPException(
-                status_code=422,
-                detail="viewer_timezone должен быть корректным IANA timezone",
-            ) from exc
+    validate_viewer_timezone(viewer_timezone)
 
     try:
         result = facade.query(

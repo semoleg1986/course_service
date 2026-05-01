@@ -12,6 +12,10 @@ from src.application.access.queries.dto import (
 )
 from src.domain.errors import AccessDeniedError
 from src.interface.http.common.actor import HttpActor, get_http_actor
+from src.interface.http.common.timezone import (
+    to_local_datetime,
+    validate_viewer_timezone,
+)
 from src.interface.http.v1.schemas.course import (
     CompletedCourseItemResponse,
     CompletedCourseListResponse,
@@ -30,12 +34,15 @@ router = APIRouter(prefix="/v1/parent", tags=["parent"])
 def list_student_course_progress(
     student_id: str,
     status: str | None = Query(default=None),
+    viewer_timezone: str | None = Query(default=None),
     limit: int = Query(default=20, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
     actor: HttpActor = Depends(get_http_actor),
     facade=Depends(get_facade),
 ) -> CourseProgressListResponse:
     """Возвращает агрегированный прогресс ученика по курсам."""
+
+    validate_viewer_timezone(viewer_timezone)
 
     try:
         results = facade.query(
@@ -55,6 +62,7 @@ def list_student_course_progress(
         limit=limit,
         offset=offset,
         status=status,
+        viewer_timezone=viewer_timezone,
     )
 
 
@@ -64,12 +72,15 @@ def list_student_course_progress(
 )
 def list_student_completed_courses(
     student_id: str,
+    viewer_timezone: str | None = Query(default=None),
     limit: int = Query(default=20, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
     actor: HttpActor = Depends(get_http_actor),
     facade=Depends(get_facade),
 ) -> CompletedCourseListResponse:
     """Возвращает завершенные курсы ученика."""
+
+    validate_viewer_timezone(viewer_timezone)
 
     try:
         results = facade.query(
@@ -84,7 +95,18 @@ def list_student_completed_courses(
     except AccessDeniedError as exc:
         raise HTTPException(status_code=403, detail=str(exc)) from exc
     return CompletedCourseListResponse(
-        items=[CompletedCourseItemResponse(**asdict(item)) for item in results],
+        items=[
+            CompletedCourseItemResponse(
+                **asdict(item),
+                completed_at_local=(
+                    to_local_datetime(item.completed_at, viewer_timezone)
+                    if viewer_timezone
+                    else None
+                ),
+            )
+            for item in results
+        ],
         limit=limit,
         offset=offset,
+        viewer_timezone=viewer_timezone,
     )
