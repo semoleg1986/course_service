@@ -4,7 +4,16 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+
+
+def _ensure_tz_aware(value: datetime | None, field_name: str) -> datetime | None:
+    """Проверяет, что datetime содержит timezone offset."""
+    if value is None:
+        return None
+    if value.tzinfo is None or value.utcoffset() is None:
+        raise ValueError(f"{field_name} должен содержать timezone offset")
+    return value
 
 
 class SeoPayload(BaseModel):
@@ -44,6 +53,16 @@ class CreateCourseRequest(BaseModel):
     slug: str | None = None
     seo: SeoPayload | None = None
 
+    @field_validator(
+        "starts_at", "enrollment_opens_at", "enrollment_closes_at", mode="after"
+    )
+    @classmethod
+    def ensure_datetime_has_timezone(
+        cls, value: datetime | None, info: object
+    ) -> datetime | None:
+        field_name = getattr(info, "field_name", "datetime")
+        return _ensure_tz_aware(value, field_name)
+
 
 class UpdateCourseRequest(BaseModel):
     """Запрос обновления курса."""
@@ -71,6 +90,16 @@ class UpdateCourseRequest(BaseModel):
     max_students: int | None = Field(default=None, ge=1)
     slug: str | None = None
     seo: SeoPayload | None = None
+
+    @field_validator(
+        "starts_at", "enrollment_opens_at", "enrollment_closes_at", mode="after"
+    )
+    @classmethod
+    def ensure_datetime_has_timezone(
+        cls, value: datetime | None, info: object
+    ) -> datetime | None:
+        field_name = getattr(info, "field_name", "datetime")
+        return _ensure_tz_aware(value, field_name)
 
 
 class AddModuleRequest(BaseModel):

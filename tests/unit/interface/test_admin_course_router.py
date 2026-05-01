@@ -159,3 +159,45 @@ def test_admin_create_rejects_unknown_teacher() -> None:
     )
     assert response.status_code == 400
     assert "teacher_id не найден" in response.json()["detail"]
+
+
+def test_admin_create_course_rejects_naive_starts_at() -> None:
+    client = _client_with_actor("admin-1", ["admin"])
+
+    response = client.post(
+        "/v1/admin/courses",
+        json={
+            "title": "Химия",
+            "teacher_id": "teacher-1",
+            "starts_at": "2026-09-01T09:00:00",
+            "duration_days": 90,
+        },
+    )
+    assert response.status_code == 422
+    assert "starts_at должен содержать timezone offset" in response.json()["detail"]
+
+
+def test_admin_update_course_rejects_naive_enrollment_dates() -> None:
+    client = _client_with_actor("admin-1", ["admin"])
+
+    create_response = client.post(
+        "/v1/admin/courses",
+        json={
+            "title": "Biology",
+            "teacher_id": "teacher-1",
+            "starts_at": "2026-09-01T09:00:00Z",
+            "duration_days": 90,
+        },
+    )
+    assert create_response.status_code == 201, create_response.text
+    course_id = create_response.json()["course_id"]
+
+    update_response = client.patch(
+        f"/v1/admin/courses/{course_id}",
+        json={"enrollment_opens_at": "2026-08-01T00:00:00"},
+    )
+    assert update_response.status_code == 422
+    assert (
+        "enrollment_opens_at должен содержать timezone offset"
+        in update_response.json()["detail"]
+    )
