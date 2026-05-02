@@ -41,6 +41,19 @@ def clean_tables() -> None:
     with engine.begin() as conn:
         try:
             conn.execute(
+                text(
+                    "TRUNCATE TABLE lesson_progress_projections RESTART IDENTITY CASCADE"
+                )
+            )
+            conn.execute(
+                text(
+                    "TRUNCATE TABLE course_progress_projections RESTART IDENTITY CASCADE"
+                )
+            )
+            conn.execute(
+                text("TRUNCATE TABLE processed_access_events RESTART IDENTITY CASCADE")
+            )
+            conn.execute(
                 text("TRUNCATE TABLE enrollment_projections RESTART IDENTITY CASCADE")
             )
             conn.execute(
@@ -50,6 +63,9 @@ def clean_tables() -> None:
                 text("TRUNCATE TABLE course_owner_projections RESTART IDENTITY CASCADE")
             )
         except SQLAlchemyError:
+            conn.execute(text("DELETE FROM lesson_progress_projections"))
+            conn.execute(text("DELETE FROM course_progress_projections"))
+            conn.execute(text("DELETE FROM processed_access_events"))
             conn.execute(text("DELETE FROM enrollment_projections"))
             conn.execute(text("DELETE FROM access_grant_projections"))
             conn.execute(text("DELETE FROM course_owner_projections"))

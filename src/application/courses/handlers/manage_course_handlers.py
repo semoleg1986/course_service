@@ -21,6 +21,7 @@ from src.application.courses.queries.dto import (
     GetCourseByIdQuery,
     GetPublishedCourseBySlugQuery,
 )
+from src.application.ports.access_read_model import AccessReadModel
 from src.application.ports.clock import Clock
 from src.application.ports.teacher_directory import TeacherDirectory
 from src.domain.content.course.entity import Course, Lesson, Module
@@ -71,10 +72,12 @@ class CreateCourseHandler:
         self,
         *,
         repository: CourseRepository,
+        read_model: AccessReadModel,
         clock: Clock,
         teacher_directory: TeacherDirectory,
     ) -> None:
         self._repository = repository
+        self._read_model = read_model
         self._clock = clock
         self._teacher_directory = teacher_directory
 
@@ -151,6 +154,7 @@ class CreateCourseHandler:
             created_by=command.actor_id,
         )
         self._repository.save(course)
+        self._read_model.seed_course_owner(course.course_id, course.teacher_id)
         return to_course_result(course)
 
 
@@ -161,10 +165,12 @@ class UpdateCourseHandler:
         self,
         *,
         repository: CourseRepository,
+        read_model: AccessReadModel,
         clock: Clock,
         teacher_directory: TeacherDirectory,
     ) -> None:
         self._repository = repository
+        self._read_model = read_model
         self._clock = clock
         self._teacher_directory = teacher_directory
 
@@ -296,6 +302,7 @@ class UpdateCourseHandler:
 
         course.meta.touch(at=self._clock.now(), actor_id=command.actor_id)
         self._repository.save(course)
+        self._read_model.seed_course_owner(course.course_id, course.teacher_id)
         return to_course_result(course)
 
 

@@ -151,6 +151,7 @@ def build_runtime() -> RuntimeContainer:
         CreateCourseCommand,
         CreateCourseHandler(
             repository=course_repository,
+            read_model=read_model,
             clock=clock,
             teacher_directory=teacher_directory,
         ),
@@ -183,6 +184,7 @@ def build_runtime() -> RuntimeContainer:
         UpdateCourseCommand,
         UpdateCourseHandler(
             repository=course_repository,
+            read_model=read_model,
             clock=clock,
             teacher_directory=teacher_directory,
         ),

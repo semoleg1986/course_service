@@ -62,6 +62,10 @@ def test_admin_create_update_get_course_flow() -> None:
     assert created["modules_count"] == 0
     assert created["estimated_duration_hours"] == 0
     assert created["is_free"] is False
+    runtime = get_runtime()
+    assert (
+        runtime.access_read_model.get_course_owner(created["course_id"]) == "teacher-1"
+    )
 
     course_id = created["course_id"]
 
@@ -79,6 +83,7 @@ def test_admin_create_update_get_course_flow() -> None:
     assert updated["price"] == 0
     assert updated["is_free"] is True
     assert updated["tags"] == ["algebra", "updated"]
+    assert runtime.access_read_model.get_course_owner(course_id) == "teacher-1"
 
     get_response = client.get(f"/v1/admin/courses/{course_id}")
     assert get_response.status_code == 200, get_response.text
@@ -257,3 +262,28 @@ def test_admin_get_course_rejects_invalid_viewer_timezone() -> None:
         "viewer_timezone должен быть корректным IANA timezone"
         in get_response.json()["detail"]
     )
+
+
+def test_admin_update_course_resyncs_owner_projection_when_teacher_changes() -> None:
+    client = _client_with_actor("admin-1", ["admin"])
+
+    create_response = client.post(
+        "/v1/admin/courses",
+        json={
+            "title": "Teacher Reassign",
+            "teacher_id": "teacher-1",
+            "starts_at": "2026-09-01T09:00:00Z",
+            "duration_days": 30,
+        },
+    )
+    assert create_response.status_code == 201, create_response.text
+    course_id = create_response.json()["course_id"]
+    runtime = get_runtime()
+    assert runtime.access_read_model.get_course_owner(course_id) == "teacher-1"
+
+    update_response = client.patch(
+        f"/v1/admin/courses/{course_id}",
+        json={"teacher_id": "teacher-22"},
+    )
+    assert update_response.status_code == 200, update_response.text
+    assert runtime.access_read_model.get_course_owner(course_id) == "teacher-22"

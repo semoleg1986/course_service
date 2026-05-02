@@ -12,6 +12,9 @@ class AccessReadModel(Protocol):
     def get_course_owner(self, course_id: str) -> str | None:
         """Возвращает account_id владельца курса или None."""
 
+    def seed_course_owner(self, course_id: str, owner_account_id: str) -> None:
+        """Создает или обновляет projection владельца курса."""
+
     def get_access_grant_status(self, course_id: str, student_id: str) -> str | None:
         """Возвращает статус grant для пары курс/ученик."""
 
