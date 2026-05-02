@@ -12,9 +12,7 @@ from src.application.common.dto import (
     CompletedCourseItemResult,
     CourseProgressItemResult,
 )
-from src.application.learning.progress_summary import (
-    evaluate_course_progress_summary,
-)
+from src.application.learning.progress_summary import evaluate_course_progress_summary
 from src.application.ports.access_read_model import AccessReadModel
 from src.application.ports.clock import Clock
 from src.application.ports.parent_student_relation_checker import (

@@ -8,19 +8,13 @@ from src.application.common.dto import (
     StudentLessonCompletionResult,
 )
 from src.application.learning.commands.dto import CompleteLessonCommand
-from src.application.learning.progress_summary import (
-    evaluate_course_progress_summary,
-)
+from src.application.learning.progress_summary import evaluate_course_progress_summary
 from src.application.learning.queries.dto import GetStudentCourseProgressQuery
 from src.application.ports.access_read_model import AccessReadModel
 from src.application.ports.clock import Clock
 from src.domain.content.course.entity import Course, Lesson, Module
 from src.domain.content.course.repository import CourseRepository
-from src.domain.errors import (
-    AccessDeniedError,
-    InvariantViolationError,
-    NotFoundError,
-)
+from src.domain.errors import AccessDeniedError, InvariantViolationError, NotFoundError
 from src.domain.learning.lesson_progress.entity import LessonProgress
 from src.domain.shared.statuses import LessonProgressStatus
 
