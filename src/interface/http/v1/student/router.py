@@ -40,7 +40,7 @@ def complete_lesson(
     except AccessDeniedError as exc:
         raise HTTPException(status_code=403, detail=str(exc)) from exc
     except InvariantViolationError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
 
     return StudentLessonCompletionResponse(
         course_id=result.course_id,
@@ -79,7 +79,7 @@ def get_course_progress(
     except AccessDeniedError as exc:
         raise HTTPException(status_code=403, detail=str(exc)) from exc
     except InvariantViolationError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
 
     return StudentCourseProgressResponse(
         course_id=result.course_id,

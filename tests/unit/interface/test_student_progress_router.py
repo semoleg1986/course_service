@@ -131,6 +131,108 @@ def _prepare_course_with_published_lessons(course_slug: str) -> str:
     return created.course_id
 
 
+def _prepare_course_with_unavailable_lesson(course_slug: str) -> str:
+    runtime = get_runtime()
+    facade = runtime.facade
+    now = datetime(2026, 5, 2, 12, 0, tzinfo=UTC)
+
+    created = facade.execute(
+        CreateCourseCommand(
+            title=f"Course {course_slug}",
+            description="desc",
+            teacher_id="teacher-1",
+            teacher_display_name="Teacher 1",
+            starts_at=now,
+            duration_days=30,
+            access_ttl_days=None,
+            enrollment_opens_at=None,
+            enrollment_closes_at=None,
+            price=0.0,
+            currency="USD",
+            language="ru",
+            age_min=None,
+            age_max=None,
+            level="beginner",
+            tags=[],
+            cover_image_url=None,
+            is_live_enabled=False,
+            live_room_template_id=None,
+            timezone="UTC",
+            max_students=None,
+            slug=course_slug,
+            seo_meta_title=f"SEO {course_slug}",
+            seo_meta_description="desc",
+            seo_canonical_url=None,
+            seo_robots="index",
+            seo_og_image_url=None,
+            actor_id="teacher-1",
+            actor_roles=["teacher"],
+        )
+    )
+    facade.execute(
+        AddModuleCommand(
+            course_id=created.course_id,
+            module_id="module-1",
+            title="Module 1",
+            description=None,
+            is_required=True,
+            released_at=None,
+            actor_id="teacher-1",
+            actor_roles=["teacher"],
+        )
+    )
+    for lesson_id in ["lesson-1", "lesson-2"]:
+        facade.execute(
+            AddLessonCommand(
+                course_id=created.course_id,
+                module_id="module-1",
+                lesson_id=lesson_id,
+                title=lesson_id,
+                description=None,
+                content_type="video",
+                content_ref=None,
+                duration_minutes=10,
+                is_preview=False,
+                released_at=None,
+                actor_id="teacher-1",
+                actor_roles=["teacher"],
+            )
+        )
+    facade.execute(
+        UpdateLessonCommand(
+            course_id=created.course_id,
+            module_id="module-1",
+            lesson_id="lesson-2",
+            actor_id="teacher-1",
+            actor_roles=["teacher"],
+            status="published",
+        )
+    )
+    facade.execute(
+        UpdateModuleCommand(
+            course_id=created.course_id,
+            module_id="module-1",
+            actor_id="teacher-1",
+            actor_roles=["teacher"],
+            status="published",
+        )
+    )
+    facade.execute(
+        PublishCourseCommand(
+            course_id=created.course_id,
+            actor_id="teacher-1",
+            actor_roles=["teacher"],
+        )
+    )
+    runtime.access_read_model.seed_course_owner(created.course_id, "teacher-1")
+    runtime.access_read_model.seed_access_grant_status(
+        created.course_id,
+        "student-1",
+        "approved",
+    )
+    return created.course_id
+
+
 def test_student_complete_lesson_happy_path_and_idempotency() -> None:
     client = _client_with_actor("student-1", ["student"])
     course_id = _prepare_course_with_published_lessons("student-course-1")
@@ -182,6 +284,15 @@ def test_student_complete_lesson_returns_404_for_unknown_lesson() -> None:
     assert response.status_code == 404, response.text
 
 
+def test_student_complete_lesson_returns_409_for_unavailable_lesson() -> None:
+    client = _client_with_actor("student-1", ["student"])
+    course_id = _prepare_course_with_unavailable_lesson("student-course-7")
+
+    response = client.post(f"/v1/student/courses/{course_id}/lessons/lesson-1/complete")
+    assert response.status_code == 409, response.text
+    assert "пока недоступен" in response.json()["detail"]
+
+
 def test_student_get_progress_returns_not_started_when_empty() -> None:
     client = _client_with_actor("student-1", ["student"])
     course_id = _prepare_course_with_published_lessons("student-course-5")
@@ -201,3 +312,17 @@ def test_student_get_progress_requires_active_access() -> None:
 
     response = client.get(f"/v1/student/courses/{course_id}/progress")
     assert response.status_code == 403, response.text
+
+
+def test_student_routes_require_bearer_token() -> None:
+    os.environ["COURSE_USE_INMEMORY"] = "1"
+    get_runtime.cache_clear()
+    client = TestClient(create_app())
+
+    progress_response = client.get("/v1/student/courses/course-1/progress")
+    assert progress_response.status_code == 401, progress_response.text
+
+    complete_response = client.post(
+        "/v1/student/courses/course-1/lessons/lesson-1/complete"
+    )
+    assert complete_response.status_code == 401, complete_response.text

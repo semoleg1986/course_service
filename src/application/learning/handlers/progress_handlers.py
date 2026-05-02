@@ -16,7 +16,11 @@ from src.application.ports.access_read_model import AccessReadModel
 from src.application.ports.clock import Clock
 from src.domain.content.course.entity import Course, Lesson, Module
 from src.domain.content.course.repository import CourseRepository
-from src.domain.errors import AccessDeniedError, NotFoundError
+from src.domain.errors import (
+    AccessDeniedError,
+    InvariantViolationError,
+    NotFoundError,
+)
 from src.domain.learning.lesson_progress.entity import LessonProgress
 from src.domain.shared.statuses import LessonProgressStatus
 
@@ -48,9 +52,15 @@ class CompleteLessonHandler:
         if course is None:
             raise NotFoundError("Курс не найден.")
 
-        module, lesson = self._find_published_lesson(course, command.lesson_id)
+        module, lesson, lesson_exists = self._find_lesson_for_completion(
+            course, command.lesson_id
+        )
         if module is None or lesson is None:
-            raise NotFoundError("Урок не найден или недоступен для прохождения.")
+            if lesson_exists:
+                raise InvariantViolationError(
+                    "Урок существует, но пока недоступен для прохождения."
+                )
+            raise NotFoundError("Урок не найден.")
 
         decision = self._check_access_handler(
             CheckCourseAccessQuery(
@@ -146,16 +156,27 @@ class CompleteLessonHandler:
         )
 
     @staticmethod
-    def _find_published_lesson(
+    def _find_lesson_for_completion(
         course: Course, lesson_id: str
-    ) -> tuple[Module | None, Lesson | None]:
+    ) -> tuple[Module | None, Lesson | None, bool]:
+        lesson_exists = False
         for module in course.modules:
+            module_matches = False
             if module.status.value != "published":
+                for lesson in module.lessons:
+                    if lesson.lesson_id == lesson_id:
+                        lesson_exists = True
                 continue
             for lesson in module.lessons:
-                if lesson.lesson_id == lesson_id and lesson.status.value == "published":
-                    return module, lesson
-        return None, None
+                if lesson.lesson_id != lesson_id:
+                    continue
+                lesson_exists = True
+                module_matches = True
+                if lesson.status.value == "published":
+                    return module, lesson, True
+            if module_matches:
+                break
+        return None, None, lesson_exists
 
 
 class GetStudentCourseProgressHandler:
