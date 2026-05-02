@@ -48,7 +48,11 @@ from src.application.courses.queries.dto import (
 )
 from src.application.facade.application_facade import ApplicationFacade
 from src.application.learning.commands.dto import CompleteLessonCommand
-from src.application.learning.handlers.progress_handlers import CompleteLessonHandler
+from src.application.learning.handlers.progress_handlers import (
+    CompleteLessonHandler,
+    GetStudentCourseProgressHandler,
+)
+from src.application.learning.queries.dto import GetStudentCourseProgressQuery
 from src.application.ports.access_read_model import AccessReadModel
 from src.application.ports.access_token_verifier import AccessTokenVerifier
 from src.infrastructure.auth.jwks_access_token_verifier import JwksAccessTokenVerifier
@@ -200,6 +204,15 @@ def build_runtime() -> RuntimeContainer:
     facade.register_command_handler(
         CompleteLessonCommand,
         CompleteLessonHandler(
+            course_repository=course_repository,
+            read_model=read_model,
+            clock=clock,
+            check_access_handler=check_access_handler,
+        ),
+    )
+    facade.register_query_handler(
+        GetStudentCourseProgressQuery,
+        GetStudentCourseProgressHandler(
             course_repository=course_repository,
             read_model=read_model,
             clock=clock,

@@ -3,8 +3,12 @@ from __future__ import annotations
 from uuid import uuid4
 
 from src.application.access.queries.dto import CheckCourseAccessQuery
-from src.application.common.dto import StudentLessonCompletionResult
+from src.application.common.dto import (
+    StudentCourseProgressResult,
+    StudentLessonCompletionResult,
+)
 from src.application.learning.commands.dto import CompleteLessonCommand
+from src.application.learning.queries.dto import GetStudentCourseProgressQuery
 from src.application.ports.access_read_model import AccessReadModel
 from src.application.ports.clock import Clock
 from src.domain.content.course.entity import Course, Lesson, Module
@@ -152,3 +156,89 @@ class CompleteLessonHandler:
                 if lesson.lesson_id == lesson_id and lesson.status.value == "published":
                     return module, lesson
         return None, None
+
+
+class GetStudentCourseProgressHandler:
+    """Возвращает агрегированный прогресс текущего студента по курсу."""
+
+    def __init__(
+        self,
+        *,
+        course_repository: CourseRepository,
+        read_model: AccessReadModel,
+        clock: Clock,
+        check_access_handler,
+    ) -> None:
+        self._course_repository = course_repository
+        self._read_model = read_model
+        self._clock = clock
+        self._check_access_handler = check_access_handler
+
+    def __call__(
+        self, query: GetStudentCourseProgressQuery
+    ) -> StudentCourseProgressResult:
+        role_set = {role.strip().lower() for role in query.actor_roles if role.strip()}
+        if "student" not in role_set:
+            raise AccessDeniedError("Операция доступна только student.")
+
+        course = self._course_repository.get(query.course_id)
+        if course is None:
+            raise NotFoundError("Курс не найден.")
+
+        decision = self._check_access_handler(
+            CheckCourseAccessQuery(
+                course_id=query.course_id,
+                actor_account_id=query.actor_id,
+                actor_roles=query.actor_roles,
+                student_id=query.actor_id,
+                require_active_grant=True,
+                require_enrollment=False,
+            )
+        )
+        if decision.decision != "allow":
+            raise AccessDeniedError("Нет активного доступа к курсу.")
+
+        summary = self._read_model.get_course_progress_summary(
+            course_id=query.course_id,
+            student_id=query.actor_id,
+        )
+        if summary is None:
+            computed = CourseCompletionPolicy.evaluate(
+                course=course,
+                completed_lesson_ids=self._read_model.list_completed_lesson_ids(
+                    course_id=query.course_id,
+                    student_id=query.actor_id,
+                ),
+                evaluated_at=self._clock.now(),
+            )
+            self._read_model.store_course_progress_summary(
+                course_id=query.course_id,
+                student_id=query.actor_id,
+                status=computed.status.value,
+                progress_percent=computed.progress_percent,
+                completed_lessons=computed.completed_lessons,
+                total_lessons=computed.total_lessons,
+                completed_at=computed.completed_at,
+            )
+            return StudentCourseProgressResult(
+                course_id=query.course_id,
+                title=course.title,
+                progress_percent=computed.progress_percent,
+                completed_lessons=computed.completed_lessons,
+                total_lessons=computed.total_lessons,
+                status=computed.status.value,
+                completed_at=computed.completed_at,
+            )
+
+        status, progress_percent, completed_lessons, total_lessons, completed_at = (
+            summary
+        )
+        return StudentCourseProgressResult(
+            course_id=query.course_id,
+            title=course.title,
+            progress_percent=progress_percent,
+            completed_lessons=completed_lessons,
+            total_lessons=total_lessons,
+            status=status,
+            completed_at=completed_at,
+        )

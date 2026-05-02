@@ -148,6 +148,15 @@ def test_student_complete_lesson_happy_path_and_idempotency() -> None:
     assert repeated.status_code == 200, repeated.text
     assert repeated.json()["completed_lessons"] == 1
 
+    progress = client.get(f"/v1/student/courses/{course_id}/progress")
+    assert progress.status_code == 200, progress.text
+    progress_body = progress.json()
+    assert progress_body["course_id"] == course_id
+    assert progress_body["status"] == "in_progress"
+    assert progress_body["progress_percent"] == 50.0
+    assert progress_body["completed_lessons"] == 1
+    assert progress_body["total_lessons"] == 2
+
 
 def test_student_complete_lesson_requires_active_access() -> None:
     client = _client_with_actor("student-2", ["student"])
@@ -171,3 +180,24 @@ def test_student_complete_lesson_returns_404_for_unknown_lesson() -> None:
 
     response = client.post(f"/v1/student/courses/{course_id}/lessons/missing/complete")
     assert response.status_code == 404, response.text
+
+
+def test_student_get_progress_returns_not_started_when_empty() -> None:
+    client = _client_with_actor("student-1", ["student"])
+    course_id = _prepare_course_with_published_lessons("student-course-5")
+
+    response = client.get(f"/v1/student/courses/{course_id}/progress")
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["status"] == "not_started"
+    assert body["progress_percent"] == 0.0
+    assert body["completed_lessons"] == 0
+    assert body["total_lessons"] == 2
+
+
+def test_student_get_progress_requires_active_access() -> None:
+    client = _client_with_actor("student-2", ["student"])
+    course_id = _prepare_course_with_published_lessons("student-course-6")
+
+    response = client.get(f"/v1/student/courses/{course_id}/progress")
+    assert response.status_code == 403, response.text

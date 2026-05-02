@@ -300,3 +300,15 @@ class StudentLessonCompletionResponse(BaseModel):
     completed_lessons: int = Field(ge=0)
     total_lessons: int = Field(ge=0)
     completed_at: datetime | None
+
+
+class StudentCourseProgressResponse(BaseModel):
+    """Ответ student progress endpoint."""
+
+    course_id: str
+    title: str
+    progress_percent: float = Field(ge=0, le=100)
+    completed_lessons: int = Field(ge=0)
+    total_lessons: int = Field(ge=0)
+    status: str
+    completed_at: datetime | None
