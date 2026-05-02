@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import datetime
+
 from src.application.access.queries.dto import (
     ListParentStudentCompletedCoursesQuery,
     ListParentStudentCourseProgressQuery,
@@ -10,6 +12,9 @@ from src.application.common.dto import (
     CompletedCourseItemResult,
     CourseProgressItemResult,
 )
+from src.application.learning.progress_summary import (
+    evaluate_course_progress_summary,
+)
 from src.application.ports.access_read_model import AccessReadModel
 from src.application.ports.clock import Clock
 from src.application.ports.parent_student_relation_checker import (
@@ -17,22 +22,68 @@ from src.application.ports.parent_student_relation_checker import (
 )
 from src.domain.content.course.repository import CourseRepository
 from src.domain.errors import AccessDeniedError
-from src.domain.shared.statuses import EnrollmentStatus
+from src.domain.shared.statuses import CourseProgressStatus
 
 
-def _compute_progress(
+def _candidate_course_ids(*, read_model: AccessReadModel, student_id: str) -> list[str]:
+    grant_ids = {
+        course_id
+        for course_id, _status in read_model.list_access_grants_by_student(student_id)
+    }
+    enrollment_ids = {
+        course_id
+        for course_id, _status in read_model.list_enrollments_by_student(student_id)
+    }
+    return sorted(grant_ids | enrollment_ids)
+
+
+def _get_or_compute_summary(
     *,
-    enrollment_status: str | None,
-    total_lessons: int,
-) -> tuple[float, int]:
-    if total_lessons <= 0:
+    read_model: AccessReadModel,
+    course_repository: CourseRepository,
+    clock: Clock,
+    course_id: str,
+    student_id: str,
+) -> tuple[str, float, int, int, datetime | None]:
+    existing = read_model.get_course_progress_summary(
+        course_id=course_id,
+        student_id=student_id,
+    )
+    if existing is not None:
+        return existing
+
+    course = course_repository.get(course_id)
+    if course is None:
         return (
-            100.0 if enrollment_status == EnrollmentStatus.COMPLETED.value else 0.0,
+            CourseProgressStatus.NOT_STARTED.value,
+            0.0,
             0,
+            0,
+            None,
         )
-    if enrollment_status == EnrollmentStatus.COMPLETED.value:
-        return (100.0, total_lessons)
-    return (0.0, 0)
+
+    computed = evaluate_course_progress_summary(
+        course=course,
+        student_id=student_id,
+        read_model=read_model,
+        evaluated_at=clock.now(),
+    )
+    read_model.store_course_progress_summary(
+        course_id=course_id,
+        student_id=student_id,
+        status=computed.status.value,
+        progress_percent=computed.progress_percent,
+        completed_lessons=computed.completed_lessons,
+        total_lessons=computed.total_lessons,
+        completed_at=computed.completed_at,
+    )
+    return (
+        computed.status.value,
+        computed.progress_percent,
+        computed.completed_lessons,
+        computed.total_lessons,
+        computed.completed_at,
+    )
 
 
 class ListParentStudentCourseProgressHandler:
@@ -44,10 +95,12 @@ class ListParentStudentCourseProgressHandler:
         read_model: AccessReadModel,
         course_repository: CourseRepository,
         relation_checker: ParentStudentRelationChecker,
+        clock: Clock,
     ) -> None:
         self._read_model = read_model
         self._course_repository = course_repository
         self._relation_checker = relation_checker
+        self._clock = clock
 
     def __call__(
         self, query: ListParentStudentCourseProgressQuery
@@ -62,24 +115,28 @@ class ListParentStudentCourseProgressHandler:
         ):
             raise AccessDeniedError("Нет доступа к данным ученика.")
 
-        grants = self._read_model.list_access_grants_by_student(query.student_id)
-        enrollment_map = dict(
-            self._read_model.list_enrollments_by_student(query.student_id)
-        )
         items: list[CourseProgressItemResult] = []
-        for course_id, grant_status in grants:
-            enrollment_status = enrollment_map.get(course_id)
-            effective_status = enrollment_status or grant_status
-            if query.status and effective_status != query.status:
+        for course_id in _candidate_course_ids(
+            read_model=self._read_model,
+            student_id=query.student_id,
+        ):
+            (
+                status,
+                progress_percent,
+                completed_lessons,
+                total_lessons,
+                _completed_at,
+            ) = _get_or_compute_summary(
+                read_model=self._read_model,
+                course_repository=self._course_repository,
+                clock=self._clock,
+                course_id=course_id,
+                student_id=query.student_id,
+            )
+            if query.status and status != query.status:
                 continue
 
             course = self._course_repository.get(course_id)
-
-            total_lessons = course.lessons_total if course is not None else 0
-            progress_percent, completed_lessons = _compute_progress(
-                enrollment_status=enrollment_status,
-                total_lessons=total_lessons,
-            )
             items.append(
                 CourseProgressItemResult(
                     course_id=course_id,
@@ -87,7 +144,7 @@ class ListParentStudentCourseProgressHandler:
                     progress_percent=progress_percent,
                     completed_lessons=completed_lessons,
                     total_lessons=total_lessons,
-                    status=effective_status,
+                    status=status,
                 )
             )
         items.sort(key=lambda item: item.course_id)
@@ -123,24 +180,32 @@ class ListParentStudentCompletedCoursesHandler:
         ):
             raise AccessDeniedError("Нет доступа к данным ученика.")
 
-        enrollments = self._read_model.list_enrollments_by_student(query.student_id)
-        completed_course_ids = sorted(
-            [
-                course_id
-                for course_id, status in enrollments
-                if status == EnrollmentStatus.COMPLETED.value
-            ]
-        )
         items: list[CompletedCourseItemResult] = []
-        for course_id in completed_course_ids:
+        for course_id in _candidate_course_ids(
+            read_model=self._read_model,
+            student_id=query.student_id,
+        ):
+            (
+                status,
+                _progress_percent,
+                _completed_lessons,
+                _total_lessons,
+                completed_at,
+            ) = _get_or_compute_summary(
+                read_model=self._read_model,
+                course_repository=self._course_repository,
+                clock=self._clock,
+                course_id=course_id,
+                student_id=query.student_id,
+            )
+            if status != CourseProgressStatus.COMPLETED.value or completed_at is None:
+                continue
             course = self._course_repository.get(course_id)
             items.append(
                 CompletedCourseItemResult(
                     course_id=course_id,
                     title=course.title if course is not None else course_id,
-                    # Отдельного timestamp completion пока нет в projection,
-                    # поэтому отдаем timestamp формирования ответа.
-                    completed_at=self._clock.now(),
+                    completed_at=completed_at,
                 )
             )
 

@@ -8,13 +8,15 @@ from src.application.common.dto import (
     StudentLessonCompletionResult,
 )
 from src.application.learning.commands.dto import CompleteLessonCommand
+from src.application.learning.progress_summary import (
+    evaluate_course_progress_summary,
+)
 from src.application.learning.queries.dto import GetStudentCourseProgressQuery
 from src.application.ports.access_read_model import AccessReadModel
 from src.application.ports.clock import Clock
 from src.domain.content.course.entity import Course, Lesson, Module
 from src.domain.content.course.repository import CourseRepository
 from src.domain.errors import AccessDeniedError, NotFoundError
-from src.domain.learning.course_progress.policy import CourseCompletionPolicy
 from src.domain.learning.lesson_progress.entity import LessonProgress
 from src.domain.shared.statuses import LessonProgressStatus
 
@@ -115,12 +117,10 @@ class CompleteLessonHandler:
             last_activity_at=progress.last_activity_at,
         )
 
-        summary = CourseCompletionPolicy.evaluate(
+        summary = evaluate_course_progress_summary(
             course=course,
-            completed_lesson_ids=self._read_model.list_completed_lesson_ids(
-                course_id=command.course_id,
-                student_id=command.actor_id,
-            ),
+            student_id=command.actor_id,
+            read_model=self._read_model,
             evaluated_at=now,
         )
         self._read_model.store_course_progress_summary(
@@ -203,12 +203,10 @@ class GetStudentCourseProgressHandler:
             student_id=query.actor_id,
         )
         if summary is None:
-            computed = CourseCompletionPolicy.evaluate(
+            computed = evaluate_course_progress_summary(
                 course=course,
-                completed_lesson_ids=self._read_model.list_completed_lesson_ids(
-                    course_id=query.course_id,
-                    student_id=query.actor_id,
-                ),
+                student_id=query.actor_id,
+                read_model=self._read_model,
                 evaluated_at=self._clock.now(),
             )
             self._read_model.store_course_progress_summary(

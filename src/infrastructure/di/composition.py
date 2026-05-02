@@ -225,6 +225,7 @@ def build_runtime() -> RuntimeContainer:
             read_model=read_model,
             course_repository=course_repository,
             relation_checker=relation_checker,
+            clock=clock,
         ),
     )
     facade.register_query_handler(
