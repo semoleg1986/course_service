@@ -6,11 +6,13 @@ from fastapi.testclient import TestClient
 
 from src.interface.http.app import create_app
 from src.interface.http.common.actor import HttpActor, get_http_actor
+from src.interface.http.observability import reset_metrics
 from src.interface.http.wiring import get_runtime
 
 
 def _client_with_actor(actor_id: str, roles: list[str]) -> TestClient:
     os.environ["COURSE_USE_INMEMORY"] = "1"
+    reset_metrics()
     get_runtime.cache_clear()
     app = create_app()
     app.dependency_overrides[get_http_actor] = lambda: HttpActor(
@@ -39,12 +41,27 @@ def test_parent_progress_happy_path_with_pagination_and_filter() -> None:
     assert page_2.status_code == 200, page_2.text
     assert page_2.json()["items"] == []
 
+    metrics = client.get("/metrics")
+    assert metrics.status_code == 200
+    assert (
+        'parent_progress_requests_total{result="success",status_filter="active"} 1'
+        in metrics.text
+    )
+    assert (
+        'parent_progress_requests_total{result="success",status_filter="all"} 1'
+        in metrics.text
+    )
+
 
 def test_parent_progress_forbidden_for_unrelated_parent() -> None:
     client = _client_with_actor("parent-2", ["parent"])
 
     response = client.get("/v1/parent/students/student-1/courses/progress")
     assert response.status_code == 403, response.text
+
+    metrics = client.get("/metrics")
+    assert metrics.status_code == 200
+    assert 'parent_acl_denied_total{endpoint="progress"} 1' in metrics.text
 
 
 def test_parent_completed_courses_endpoint() -> None:
@@ -61,6 +78,10 @@ def test_parent_completed_courses_endpoint() -> None:
     assert isinstance(body["items"], list)
     if body["items"]:
         assert body["items"][0]["completed_at_local"] is not None
+
+    metrics = client.get("/metrics")
+    assert metrics.status_code == 200
+    assert 'parent_completed_requests_total{result="success"} 1' in metrics.text
 
 
 def test_parent_progress_accepts_viewer_timezone() -> None:
@@ -88,6 +109,7 @@ def test_parent_progress_rejects_invalid_viewer_timezone() -> None:
 
 def test_parent_progress_requires_bearer_token() -> None:
     os.environ["COURSE_USE_INMEMORY"] = "1"
+    reset_metrics()
     get_runtime.cache_clear()
     client = TestClient(create_app())
 

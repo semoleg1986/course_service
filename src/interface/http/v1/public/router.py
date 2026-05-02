@@ -13,6 +13,7 @@ from src.interface.http.common.timezone import (
     to_local_datetime,
     validate_viewer_timezone,
 )
+from src.interface.http.observability import increment_counter
 from src.interface.http.v1.schemas.course import (
     PublicCourseModuleResponse,
     PublicCourseResponse,
@@ -79,5 +80,15 @@ def get_public_course(
     try:
         result = facade.query(GetPublishedCourseBySlugQuery(slug=slug))
     except NotFoundError as exc:
+        increment_counter(
+            "public_course_requests_total",
+            "Total public course read requests.",
+            result="not_found",
+        )
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+    increment_counter(
+        "public_course_requests_total",
+        "Total public course read requests.",
+        result="success",
+    )
     return _to_public_course_response(result, viewer_timezone=viewer_timezone)

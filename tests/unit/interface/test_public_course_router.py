@@ -6,12 +6,14 @@ from fastapi.testclient import TestClient
 
 from src.interface.http.app import create_app
 from src.interface.http.common.actor import HttpActor
+from src.interface.http.observability import reset_metrics
 from src.interface.http.v1.admin.router import get_http_actor
 from src.interface.http.wiring import get_runtime
 
 
 def _client_with_admin() -> TestClient:
     os.environ["COURSE_USE_INMEMORY"] = "1"
+    reset_metrics()
     get_runtime.cache_clear()
     app = create_app()
     app.dependency_overrides[get_http_actor] = lambda: HttpActor(
@@ -86,6 +88,10 @@ def test_public_course_returns_published_course_with_viewer_timezone() -> None:
         }
     ]
 
+    metrics = client.get("/metrics")
+    assert metrics.status_code == 200
+    assert 'public_course_requests_total{result="success"} 1' in metrics.text
+
 
 def test_public_course_hides_non_published_course() -> None:
     client = _client_with_admin()
@@ -104,6 +110,10 @@ def test_public_course_hides_non_published_course() -> None:
 
     public_response = client.get("/v1/public/courses/draft-course")
     assert public_response.status_code == 404, public_response.text
+
+    metrics = client.get("/metrics")
+    assert metrics.status_code == 200
+    assert 'public_course_requests_total{result="not_found"} 1' in metrics.text
 
 
 def test_public_course_rejects_invalid_viewer_timezone() -> None:

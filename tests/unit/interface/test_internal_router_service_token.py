@@ -6,6 +6,7 @@ from fastapi.testclient import TestClient
 
 from src.interface.http.app import create_app
 from src.interface.http.common.actor import HttpActor
+from src.interface.http.observability import reset_metrics
 from src.interface.http.v1.admin.router import get_http_actor as get_admin_http_actor
 from src.interface.http.wiring import get_runtime
 
@@ -13,6 +14,7 @@ from src.interface.http.wiring import get_runtime
 def _client() -> TestClient:
     os.environ["COURSE_USE_INMEMORY"] = "1"
     os.environ["COURSE_SERVICE_TOKEN"] = "svc-token"
+    reset_metrics()
     get_runtime.cache_clear()
     return TestClient(create_app())
 
@@ -136,4 +138,23 @@ def test_internal_access_granted_event_is_replay_safe() -> None:
     assert (
         runtime.access_read_model.get_access_grant_status(course_id, "student-1")
         == "approved"
+    )
+
+    metrics = client.get("/metrics")
+    assert metrics.status_code == 200
+    assert (
+        'course_access_granted_events_total{granted_status="approved",result="applied"} 1'
+        in metrics.text
+    )
+    assert (
+        'course_access_granted_events_total{granted_status="approved",result="replay"} 1'
+        in metrics.text
+    )
+    assert (
+        'course_access_granted_applied_total{granted_status="approved"} 1'
+        in metrics.text
+    )
+    assert (
+        'course_access_granted_replays_total{granted_status="approved"} 1'
+        in metrics.text
     )

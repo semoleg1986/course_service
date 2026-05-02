@@ -11,6 +11,7 @@ from src.application.access.queries.dto import CheckCourseAccessQuery
 from src.application.courses.queries.dto import GetCourseByIdQuery
 from src.domain.errors import NotFoundError
 from src.interface.http.common.actor import HttpActor, get_http_actor
+from src.interface.http.observability import increment_counter
 from src.interface.http.v1.schemas.internal import (
     AccessGrantedEventRequest,
     AccessGrantedEventResponse,
@@ -132,6 +133,25 @@ def apply_access_granted_event(
             student_id=payload.student_id,
             granted_status=payload.granted_status,
         )
+    )
+    increment_counter(
+        "course_access_granted_events_total",
+        "Total course.access.granted events received by course_service.",
+        result="applied" if applied else "replay",
+        granted_status=payload.granted_status,
+    )
+    increment_counter(
+        (
+            "course_access_granted_applied_total"
+            if applied
+            else "course_access_granted_replays_total"
+        ),
+        (
+            "Total applied course.access.granted events."
+            if applied
+            else "Total replayed course.access.granted events."
+        ),
+        granted_status=payload.granted_status,
     )
     return AccessGrantedEventResponse(
         event_id=payload.event_id,

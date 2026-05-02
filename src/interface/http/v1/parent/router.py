@@ -16,6 +16,7 @@ from src.interface.http.common.timezone import (
     to_local_datetime,
     validate_viewer_timezone,
 )
+from src.interface.http.observability import increment_counter
 from src.interface.http.v1.schemas.course import (
     CompletedCourseItemResponse,
     CompletedCourseListResponse,
@@ -56,7 +57,18 @@ def list_student_course_progress(
             )
         )
     except AccessDeniedError as exc:
+        increment_counter(
+            "parent_acl_denied_total",
+            "Total denied parent ACL checks.",
+            endpoint="progress",
+        )
         raise HTTPException(status_code=403, detail=str(exc)) from exc
+    increment_counter(
+        "parent_progress_requests_total",
+        "Total parent student progress read requests.",
+        result="success",
+        status_filter=status or "all",
+    )
     return CourseProgressListResponse(
         items=[CourseProgressItemResponse(**asdict(item)) for item in results],
         limit=limit,
@@ -93,7 +105,17 @@ def list_student_completed_courses(
             )
         )
     except AccessDeniedError as exc:
+        increment_counter(
+            "parent_acl_denied_total",
+            "Total denied parent ACL checks.",
+            endpoint="completed",
+        )
         raise HTTPException(status_code=403, detail=str(exc)) from exc
+    increment_counter(
+        "parent_completed_requests_total",
+        "Total parent student completed-courses read requests.",
+        result="success",
+    )
     return CompletedCourseListResponse(
         items=[
             CompletedCourseItemResponse(
