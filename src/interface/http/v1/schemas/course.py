@@ -285,3 +285,18 @@ class CompletedCourseListResponse(BaseModel):
     limit: int
     offset: int
     viewer_timezone: str | None = None
+
+
+class StudentLessonCompletionResponse(BaseModel):
+    """Ответ student endpoint после completion урока."""
+
+    course_id: str
+    module_id: str
+    lesson_id: str
+    student_id: str
+    lesson_status: str
+    course_status: str
+    progress_percent: float = Field(ge=0, le=100)
+    completed_lessons: int = Field(ge=0)
+    total_lessons: int = Field(ge=0)
+    completed_at: datetime | None

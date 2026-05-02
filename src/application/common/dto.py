@@ -76,6 +76,22 @@ class CourseProgressItemResult:
 
 
 @dataclass(frozen=True, slots=True)
+class StudentLessonCompletionResult:
+    """Результат completion конкретного урока студентом."""
+
+    course_id: str
+    module_id: str
+    lesson_id: str
+    student_id: str
+    lesson_status: str
+    course_status: str
+    progress_percent: float
+    completed_lessons: int
+    total_lessons: int
+    completed_at: datetime | None
+
+
+@dataclass(frozen=True, slots=True)
 class CompletedCourseItemResult:
     """Завершенный курс ученика для parent-view."""
 

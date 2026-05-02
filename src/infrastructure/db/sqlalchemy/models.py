@@ -125,6 +125,55 @@ class EnrollmentProjectionModel(Base):
     status: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
 
 
+class LessonProgressProjectionModel(Base):
+    """Проекция прогресса ученика по уроку."""
+
+    __tablename__ = "lesson_progress_projections"
+    __table_args__ = (PrimaryKeyConstraint("course_id", "student_id", "lesson_id"),)
+
+    course_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
+    module_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
+    lesson_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
+    student_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    progress_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    created_by: Mapped[str] = mapped_column(String(64), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    updated_by: Mapped[str] = mapped_column(String(64), nullable=False)
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    started_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    completed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    last_activity_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+
+class CourseProgressProjectionModel(Base):
+    """Агрегированный summary прогресса ученика по курсу."""
+
+    __tablename__ = "course_progress_projections"
+    __table_args__ = (PrimaryKeyConstraint("course_id", "student_id"),)
+
+    course_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
+    student_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
+    progress_percent: Mapped[float] = mapped_column(Numeric(5, 2), nullable=False)
+    completed_lessons: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    total_lessons: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    completed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+
 class ProcessedAccessEventModel(Base):
     """Replay-safe dedup store для access events."""
 
