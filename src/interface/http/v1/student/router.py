@@ -6,6 +6,7 @@ from src.application.learning.commands.dto import CompleteLessonCommand
 from src.application.learning.queries.dto import GetStudentCourseProgressQuery
 from src.domain.errors import AccessDeniedError, InvariantViolationError, NotFoundError
 from src.interface.http.common.actor import HttpActor, get_http_actor
+from src.interface.http.observability import increment_counter
 from src.interface.http.v1.schemas.course import (
     StudentCourseProgressResponse,
     StudentLessonCompletionResponse,
@@ -36,11 +37,39 @@ def complete_lesson(
             )
         )
     except NotFoundError as exc:
+        increment_counter(
+            "student_lesson_completion_requests_total",
+            "Total student lesson completion requests.",
+            result="not_found",
+        )
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except AccessDeniedError as exc:
+        increment_counter(
+            "student_lesson_completion_requests_total",
+            "Total student lesson completion requests.",
+            result="denied",
+        )
         raise HTTPException(status_code=403, detail=str(exc)) from exc
     except InvariantViolationError as exc:
+        increment_counter(
+            "student_lesson_completion_requests_total",
+            "Total student lesson completion requests.",
+            result="conflict",
+        )
         raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    increment_counter(
+        "student_lesson_completion_requests_total",
+        "Total student lesson completion requests.",
+        result="success",
+        course_status=result.course_status,
+    )
+    if result.course_status == "completed":
+        increment_counter(
+            "course_completions_total",
+            "Total completed courses via student learning flow.",
+            source="student_complete",
+        )
 
     return StudentLessonCompletionResponse(
         course_id=result.course_id,
@@ -75,11 +104,33 @@ def get_course_progress(
             )
         )
     except NotFoundError as exc:
+        increment_counter(
+            "student_course_progress_requests_total",
+            "Total student course progress read requests.",
+            result="not_found",
+        )
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except AccessDeniedError as exc:
+        increment_counter(
+            "student_course_progress_requests_total",
+            "Total student course progress read requests.",
+            result="denied",
+        )
         raise HTTPException(status_code=403, detail=str(exc)) from exc
     except InvariantViolationError as exc:
+        increment_counter(
+            "student_course_progress_requests_total",
+            "Total student course progress read requests.",
+            result="conflict",
+        )
         raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    increment_counter(
+        "student_course_progress_requests_total",
+        "Total student course progress read requests.",
+        result="success",
+        status=result.status,
+    )
 
     return StudentCourseProgressResponse(
         course_id=result.course_id,
