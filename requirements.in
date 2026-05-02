@@ -8,9 +8,9 @@ sqlalchemy
 alembic
 psycopg[binary]
 
-black
-isort
+black==24.10.0
+isort==5.13.2
 flake8
 mypy
 
-pre-commit
+pre-commit==4.5.1
