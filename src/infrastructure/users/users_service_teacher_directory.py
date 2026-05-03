@@ -9,6 +9,7 @@ from urllib.request import Request, urlopen
 
 from src.application.ports.teacher_directory import TeacherInfo
 from src.domain.errors import InvariantViolationError
+from src.interface.http.observability import current_correlation_id
 
 
 class UsersServiceTeacherDirectory:
@@ -27,7 +28,14 @@ class UsersServiceTeacherDirectory:
         url = f"{self._base_url}/internal/v1/teachers/{quote(teacher_id)}"
         request = Request(
             url,
-            headers={"X-Service-Token": self._service_token},
+            headers={
+                "X-Service-Token": self._service_token,
+                **(
+                    {"X-Correlation-ID": current_correlation_id()}
+                    if current_correlation_id() is not None
+                    else {}
+                ),
+            },
             method="GET",
         )
         try:

@@ -12,6 +12,10 @@ def _request_id(request: Request) -> str | None:
     return getattr(request.state, "request_id", None)
 
 
+def _correlation_id(request: Request) -> str | None:
+    return getattr(request.state, "correlation_id", None)
+
+
 def register_exception_handlers(app: FastAPI) -> None:
     """Регистрирует единый формат ошибок с request_id."""
 
@@ -25,6 +29,7 @@ def register_exception_handlers(app: FastAPI) -> None:
             content={
                 "detail": str(exc),
                 "request_id": _request_id(request),
+                "correlation_id": _correlation_id(request),
             },
         )
 
@@ -38,8 +43,21 @@ def register_exception_handlers(app: FastAPI) -> None:
             content={
                 "detail": exc.detail,
                 "request_id": _request_id(request),
+                "correlation_id": _correlation_id(request),
             },
-            headers=exc.headers,
+            headers={
+                **(exc.headers or {}),
+                **(
+                    {"X-Request-ID": _request_id(request)}
+                    if _request_id(request) is not None
+                    else {}
+                ),
+                **(
+                    {"X-Correlation-ID": _correlation_id(request)}
+                    if _correlation_id(request) is not None
+                    else {}
+                ),
+            },
         )
 
     @app.exception_handler(Exception)
@@ -49,5 +67,6 @@ def register_exception_handlers(app: FastAPI) -> None:
             content={
                 "detail": str(exc),
                 "request_id": _request_id(request),
+                "correlation_id": _correlation_id(request),
             },
         )
