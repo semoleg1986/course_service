@@ -63,6 +63,7 @@ from src.infrastructure.db.inmemory.audit_evidence_repository import (
     InMemoryAuditEvidenceRepository,
 )
 from src.infrastructure.db.inmemory.course_repository import InMemoryCourseRepository
+from src.infrastructure.db.inmemory.uow import InMemoryUnitOfWork
 from src.infrastructure.users.inmemory_parent_student_relation_checker import (
     InMemoryParentStudentRelationChecker,
 )
@@ -120,6 +121,7 @@ def build_runtime() -> RuntimeContainer:
             build_engine,
             build_session_factory,
         )
+        from src.infrastructure.db.sqlalchemy.uow import SqlalchemyUnitOfWork
 
         engine = build_engine(settings.database_url)
         if settings.auto_create_schema:
@@ -137,6 +139,13 @@ def build_runtime() -> RuntimeContainer:
             base_url=settings.users_service_base_url,
             service_token=settings.users_service_token,
             timeout_seconds=settings.users_service_timeout_seconds,
+        )
+        uow_factory = lambda: SqlalchemyUnitOfWork(session_factory)
+    if settings.use_inmemory:
+        uow_factory = lambda: InMemoryUnitOfWork(
+            course_repository=course_repository,
+            access_read_model=read_model,
+            audit_evidence=audit_repo,
         )
 
     # Demo-данные для локальной проверки контракта.
@@ -159,45 +168,39 @@ def build_runtime() -> RuntimeContainer:
     facade.register_command_handler(
         CreateCourseCommand,
         CreateCourseHandler(
-            repository=course_repository,
-            read_model=read_model,
+            uow_factory=uow_factory,
             clock=clock,
             teacher_directory=teacher_directory,
         ),
     )
     facade.register_command_handler(
         AddModuleCommand,
-        AddModuleHandler(repository=course_repository, clock=clock),
+        AddModuleHandler(uow_factory=uow_factory, clock=clock),
     )
     facade.register_command_handler(
         AddLessonCommand,
-        AddLessonHandler(repository=course_repository, clock=clock),
+        AddLessonHandler(uow_factory=uow_factory, clock=clock),
     )
     facade.register_command_handler(
         PublishCourseCommand,
-        PublishCourseHandler(
-            repository=course_repository, clock=clock, audit_repo=audit_repo
-        ),
+        PublishCourseHandler(uow_factory=uow_factory, clock=clock),
     )
     facade.register_command_handler(
         ArchiveCourseCommand,
-        ArchiveCourseHandler(
-            repository=course_repository, clock=clock, audit_repo=audit_repo
-        ),
+        ArchiveCourseHandler(uow_factory=uow_factory, clock=clock),
     )
     facade.register_command_handler(
         UpdateModuleCommand,
-        UpdateModuleHandler(repository=course_repository, clock=clock),
+        UpdateModuleHandler(uow_factory=uow_factory, clock=clock),
     )
     facade.register_command_handler(
         UpdateLessonCommand,
-        UpdateLessonHandler(repository=course_repository, clock=clock),
+        UpdateLessonHandler(uow_factory=uow_factory, clock=clock),
     )
     facade.register_command_handler(
         UpdateCourseCommand,
         UpdateCourseHandler(
-            repository=course_repository,
-            read_model=read_model,
+            uow_factory=uow_factory,
             clock=clock,
             teacher_directory=teacher_directory,
         ),

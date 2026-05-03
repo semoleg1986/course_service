@@ -21,6 +21,10 @@ from src.infrastructure.db.sqlalchemy.models import (
     CourseLessonModel,
     CourseModuleModel,
 )
+from src.infrastructure.db.sqlalchemy.session import (
+    managed_session,
+    managed_transaction,
+)
 
 
 class SqlalchemyCourseRepository:
@@ -30,18 +34,18 @@ class SqlalchemyCourseRepository:
         self._session_factory = session_factory
 
     def get(self, course_id: str) -> Course | None:
-        with self._session_factory() as db:
+        with managed_session(self._session_factory) as db:
             model = db.get(CourseCatalogModel, course_id)
             return self._to_entity_with_children(model) if model else None
 
     def get_by_slug(self, slug: str) -> Course | None:
-        with self._session_factory() as db:
+        with managed_session(self._session_factory) as db:
             stmt = select(CourseCatalogModel).where(CourseCatalogModel.slug == slug)
             model = db.execute(stmt).scalar_one_or_none()
             return self._to_entity_with_children(model) if model else None
 
     def save(self, course: Course) -> None:
-        with self._session_factory.begin() as db:
+        with managed_transaction(self._session_factory) as db:
             model = db.get(CourseCatalogModel, course.course_id)
             if model is None:
                 model = CourseCatalogModel(course_id=course.course_id)
@@ -203,7 +207,7 @@ class SqlalchemyCourseRepository:
 
     def _to_entity_with_children(self, model: CourseCatalogModel) -> Course:
         course = self._to_entity(model)
-        with self._session_factory() as db:
+        with managed_session(self._session_factory) as db:
             module_models = (
                 db.execute(
                     select(CourseModuleModel)

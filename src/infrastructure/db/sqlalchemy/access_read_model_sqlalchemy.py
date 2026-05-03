@@ -15,6 +15,10 @@ from src.infrastructure.db.sqlalchemy.models import (
     LessonProgressProjectionModel,
     ProcessedAccessEventModel,
 )
+from src.infrastructure.db.sqlalchemy.session import (
+    managed_session,
+    managed_transaction,
+)
 
 
 class SqlalchemyAccessReadModel:
@@ -24,12 +28,12 @@ class SqlalchemyAccessReadModel:
         self._session_factory = session_factory
 
     def get_course_owner(self, course_id: str) -> str | None:
-        with self._session_factory() as db:
+        with managed_session(self._session_factory) as db:
             row = db.get(CourseOwnerProjectionModel, course_id)
             return row.owner_account_id if row else None
 
     def get_access_grant_status(self, course_id: str, student_id: str) -> str | None:
-        with self._session_factory() as db:
+        with managed_session(self._session_factory) as db:
             stmt = select(AccessGrantProjectionModel.status).where(
                 AccessGrantProjectionModel.course_id == course_id,
                 AccessGrantProjectionModel.student_id == student_id,
@@ -37,7 +41,7 @@ class SqlalchemyAccessReadModel:
             return db.execute(stmt).scalar_one_or_none()
 
     def get_enrollment_status(self, course_id: str, student_id: str) -> str | None:
-        with self._session_factory() as db:
+        with managed_session(self._session_factory) as db:
             stmt = select(EnrollmentProjectionModel.status).where(
                 EnrollmentProjectionModel.course_id == course_id,
                 EnrollmentProjectionModel.student_id == student_id,
@@ -45,7 +49,7 @@ class SqlalchemyAccessReadModel:
             return db.execute(stmt).scalar_one_or_none()
 
     def list_access_grants_by_student(self, student_id: str) -> list[tuple[str, str]]:
-        with self._session_factory() as db:
+        with managed_session(self._session_factory) as db:
             stmt = (
                 select(
                     AccessGrantProjectionModel.course_id,
@@ -58,7 +62,7 @@ class SqlalchemyAccessReadModel:
             return [(str(course_id), str(status)) for course_id, status in rows]
 
     def list_enrollments_by_student(self, student_id: str) -> list[tuple[str, str]]:
-        with self._session_factory() as db:
+        with managed_session(self._session_factory) as db:
             stmt = (
                 select(
                     EnrollmentProjectionModel.course_id,
@@ -88,7 +92,7 @@ class SqlalchemyAccessReadModel:
         completed_at,
         last_activity_at,
     ) -> None:
-        with self._session_factory.begin() as db:
+        with managed_transaction(self._session_factory) as db:
             stmt = select(LessonProgressProjectionModel).where(
                 LessonProgressProjectionModel.course_id == course_id,
                 LessonProgressProjectionModel.student_id == student_id,
@@ -130,7 +134,7 @@ class SqlalchemyAccessReadModel:
     def get_lesson_progress(
         self, *, course_id: str, student_id: str, lesson_id: str
     ) -> dict[str, object] | None:
-        with self._session_factory() as db:
+        with managed_session(self._session_factory) as db:
             stmt = select(LessonProgressProjectionModel).where(
                 LessonProgressProjectionModel.course_id == course_id,
                 LessonProgressProjectionModel.student_id == student_id,
@@ -156,7 +160,7 @@ class SqlalchemyAccessReadModel:
     def list_completed_lesson_ids(
         self, *, course_id: str, student_id: str
     ) -> list[str]:
-        with self._session_factory() as db:
+        with managed_session(self._session_factory) as db:
             stmt = (
                 select(LessonProgressProjectionModel.lesson_id)
                 .where(
@@ -179,7 +183,7 @@ class SqlalchemyAccessReadModel:
         total_lessons: int,
         completed_at,
     ) -> None:
-        with self._session_factory.begin() as db:
+        with managed_transaction(self._session_factory) as db:
             stmt = select(CourseProgressProjectionModel).where(
                 CourseProgressProjectionModel.course_id == course_id,
                 CourseProgressProjectionModel.student_id == student_id,
@@ -207,7 +211,7 @@ class SqlalchemyAccessReadModel:
     def get_course_progress_summary(
         self, *, course_id: str, student_id: str
     ) -> tuple[str, float, int, int, object | None] | None:
-        with self._session_factory() as db:
+        with managed_session(self._session_factory) as db:
             stmt = select(CourseProgressProjectionModel).where(
                 CourseProgressProjectionModel.course_id == course_id,
                 CourseProgressProjectionModel.student_id == student_id,
@@ -232,7 +236,7 @@ class SqlalchemyAccessReadModel:
         return value
 
     def seed_course_owner(self, course_id: str, owner_account_id: str) -> None:
-        with self._session_factory.begin() as db:
+        with managed_transaction(self._session_factory) as db:
             row = db.get(CourseOwnerProjectionModel, course_id)
             if row is None:
                 db.add(
@@ -247,7 +251,7 @@ class SqlalchemyAccessReadModel:
     def seed_access_grant_status(
         self, course_id: str, student_id: str, status: str
     ) -> None:
-        with self._session_factory.begin() as db:
+        with managed_transaction(self._session_factory) as db:
             stmt = select(AccessGrantProjectionModel).where(
                 AccessGrantProjectionModel.course_id == course_id,
                 AccessGrantProjectionModel.student_id == student_id,
@@ -267,7 +271,7 @@ class SqlalchemyAccessReadModel:
     def seed_enrollment_status(
         self, course_id: str, student_id: str, status: str
     ) -> None:
-        with self._session_factory.begin() as db:
+        with managed_transaction(self._session_factory) as db:
             stmt = select(EnrollmentProjectionModel).where(
                 EnrollmentProjectionModel.course_id == course_id,
                 EnrollmentProjectionModel.student_id == student_id,
@@ -292,7 +296,7 @@ class SqlalchemyAccessReadModel:
         student_id: str,
         granted_status: str,
     ) -> bool:
-        with self._session_factory.begin() as db:
+        with managed_transaction(self._session_factory) as db:
             processed = db.get(ProcessedAccessEventModel, event_id)
             if processed is not None:
                 return False

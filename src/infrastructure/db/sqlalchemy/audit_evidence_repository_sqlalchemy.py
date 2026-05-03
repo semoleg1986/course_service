@@ -7,6 +7,10 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from src.application.ports.audit_evidence import AuditEvidenceRecord
 from src.infrastructure.db.sqlalchemy.models import AuditEvidenceModel
+from src.infrastructure.db.sqlalchemy.session import (
+    managed_session,
+    managed_transaction,
+)
 
 
 class SqlalchemyAuditEvidenceRepository:
@@ -16,7 +20,7 @@ class SqlalchemyAuditEvidenceRepository:
         self._session_factory = session_factory
 
     def append(self, record: AuditEvidenceRecord) -> None:
-        with self._session_factory.begin() as db:
+        with managed_transaction(self._session_factory) as db:
             db.add(
                 AuditEvidenceModel(
                     audit_id=record.audit_id,
@@ -36,7 +40,7 @@ class SqlalchemyAuditEvidenceRepository:
             )
 
     def list_all(self) -> list[AuditEvidenceRecord]:
-        with self._session_factory() as db:
+        with managed_session(self._session_factory) as db:
             models = (
                 db.execute(
                     select(AuditEvidenceModel).order_by(
