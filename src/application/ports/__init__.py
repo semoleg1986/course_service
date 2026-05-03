@@ -4,6 +4,10 @@
 
 from src.application.ports.access_read_model import AccessReadModel
 from src.application.ports.access_token_verifier import AccessTokenVerifier
+from src.application.ports.audit_evidence import (
+    AuditEvidenceRecord,
+    AuditEvidenceRepository,
+)
 from src.application.ports.clock import Clock
 from src.application.ports.parent_student_relation_checker import (
     ParentStudentRelationChecker,
@@ -12,6 +16,8 @@ from src.application.ports.teacher_directory import TeacherDirectory, TeacherInf
 
 __all__ = [
     "AccessReadModel",
+    "AuditEvidenceRecord",
+    "AuditEvidenceRepository",
     "AccessTokenVerifier",
     "Clock",
     "ParentStudentRelationChecker",

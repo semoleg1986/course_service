@@ -22,6 +22,10 @@ from src.application.courses.queries.dto import (
     GetPublishedCourseBySlugQuery,
 )
 from src.application.ports.access_read_model import AccessReadModel
+from src.application.ports.audit_evidence import (
+    AuditEvidenceRecord,
+    AuditEvidenceRepository,
+)
 from src.application.ports.clock import Clock
 from src.application.ports.teacher_directory import TeacherDirectory
 from src.domain.content.course.entity import Course, Lesson, Module
@@ -422,9 +426,16 @@ class AddLessonHandler:
 class PublishCourseHandler:
     """Публикует курс."""
 
-    def __init__(self, *, repository: CourseRepository, clock: Clock) -> None:
+    def __init__(
+        self,
+        *,
+        repository: CourseRepository,
+        clock: Clock,
+        audit_repo: AuditEvidenceRepository,
+    ) -> None:
         self._repository = repository
         self._clock = clock
+        self._audit_repo = audit_repo
 
     def __call__(self, command: PublishCourseCommand) -> CourseResult:
         _ensure_admin_or_teacher(command.actor_roles)
@@ -436,7 +447,25 @@ class PublishCourseHandler:
             role.strip().lower() for role in command.actor_roles if role.strip()
         }
         if "admin" not in role_set and course.teacher_id != command.actor_id:
-            raise AccessDeniedError("Публиковать курс может только owner/admin.")
+            reason = "Публиковать курс может только owner/admin."
+            self._audit_repo.append(
+                AuditEvidenceRecord(
+                    audit_id=str(uuid4()),
+                    action="course.publish",
+                    occurred_at=self._clock.now(),
+                    result="denied",
+                    actor_id=command.actor_id,
+                    actor_roles=tuple(command.actor_roles),
+                    target_type="course",
+                    target_id=course.course_id,
+                    reason=reason,
+                    reason_code="course_publish_forbidden",
+                    request_id=command.request_id,
+                    correlation_id=command.correlation_id,
+                    course_id=course.course_id,
+                )
+            )
+            raise AccessDeniedError(reason)
 
         course.publish(changed_at=self._clock.now(), changed_by=command.actor_id)
         self._repository.save(course)
@@ -446,9 +475,16 @@ class PublishCourseHandler:
 class ArchiveCourseHandler:
     """Архивирует курс."""
 
-    def __init__(self, *, repository: CourseRepository, clock: Clock) -> None:
+    def __init__(
+        self,
+        *,
+        repository: CourseRepository,
+        clock: Clock,
+        audit_repo: AuditEvidenceRepository,
+    ) -> None:
         self._repository = repository
         self._clock = clock
+        self._audit_repo = audit_repo
 
     def __call__(self, command: ArchiveCourseCommand) -> CourseResult:
         _ensure_admin_or_teacher(command.actor_roles)
@@ -460,7 +496,25 @@ class ArchiveCourseHandler:
             role.strip().lower() for role in command.actor_roles if role.strip()
         }
         if "admin" not in role_set and course.teacher_id != command.actor_id:
-            raise AccessDeniedError("Архивировать курс может только owner/admin.")
+            reason = "Архивировать курс может только owner/admin."
+            self._audit_repo.append(
+                AuditEvidenceRecord(
+                    audit_id=str(uuid4()),
+                    action="course.archive",
+                    occurred_at=self._clock.now(),
+                    result="denied",
+                    actor_id=command.actor_id,
+                    actor_roles=tuple(command.actor_roles),
+                    target_type="course",
+                    target_id=course.course_id,
+                    reason=reason,
+                    reason_code="course_archive_forbidden",
+                    request_id=command.request_id,
+                    correlation_id=command.correlation_id,
+                    course_id=course.course_id,
+                )
+            )
+            raise AccessDeniedError(reason)
 
         course.archive(changed_at=self._clock.now(), changed_by=command.actor_id)
         self._repository.save(course)

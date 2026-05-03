@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import asdict
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
 from src.application.common.dto import CourseResult
 from src.application.courses.commands.dto import (
@@ -281,6 +281,7 @@ def add_lesson(
 @router.post("/courses/{course_id}/publish", response_model=CourseResponse)
 def publish_course(
     course_id: str,
+    request: Request,
     actor: HttpActor = Depends(get_http_actor),
     facade=Depends(get_facade),
 ) -> CourseResponse:
@@ -292,6 +293,8 @@ def publish_course(
                 course_id=course_id,
                 actor_id=actor.actor_id,
                 actor_roles=actor.roles,
+                request_id=getattr(request.state, "request_id", None),
+                correlation_id=getattr(request.state, "correlation_id", None),
             )
         )
     except NotFoundError as exc:
@@ -306,6 +309,7 @@ def publish_course(
 @router.post("/courses/{course_id}/archive", response_model=CourseResponse)
 def archive_course(
     course_id: str,
+    request: Request,
     actor: HttpActor = Depends(get_http_actor),
     facade=Depends(get_facade),
 ) -> CourseResponse:
@@ -317,6 +321,8 @@ def archive_course(
                 course_id=course_id,
                 actor_id=actor.actor_id,
                 actor_roles=actor.roles,
+                request_id=getattr(request.state, "request_id", None),
+                correlation_id=getattr(request.state, "correlation_id", None),
             )
         )
     except NotFoundError as exc:

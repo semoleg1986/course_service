@@ -59,6 +59,9 @@ from src.infrastructure.auth.jwks_access_token_verifier import JwksAccessTokenVe
 from src.infrastructure.clock.system_clock import SystemClock
 from src.infrastructure.config.settings import Settings
 from src.infrastructure.db.inmemory.access_read_model import InMemoryAccessReadModel
+from src.infrastructure.db.inmemory.audit_evidence_repository import (
+    InMemoryAuditEvidenceRepository,
+)
 from src.infrastructure.db.inmemory.course_repository import InMemoryCourseRepository
 from src.infrastructure.users.inmemory_parent_student_relation_checker import (
     InMemoryParentStudentRelationChecker,
@@ -80,6 +83,7 @@ class RuntimeContainer:
     service_token: str
     access_token_verifier: AccessTokenVerifier
     access_read_model: AccessReadModel
+    audit_repo: object
 
 
 def build_runtime() -> RuntimeContainer:
@@ -97,12 +101,16 @@ def build_runtime() -> RuntimeContainer:
     if settings.use_inmemory:
         read_model = InMemoryAccessReadModel()
         course_repository = InMemoryCourseRepository()
+        audit_repo = InMemoryAuditEvidenceRepository()
         teacher_directory = InMemoryTeacherDirectory()
         relation_checker = InMemoryParentStudentRelationChecker()
     else:
         from src.infrastructure.db.sqlalchemy import models as _models  # noqa: F401
         from src.infrastructure.db.sqlalchemy.access_read_model_sqlalchemy import (
             SqlalchemyAccessReadModel,
+        )
+        from src.infrastructure.db.sqlalchemy.audit_evidence_repository_sqlalchemy import (
+            SqlalchemyAuditEvidenceRepository,
         )
         from src.infrastructure.db.sqlalchemy.base import Base
         from src.infrastructure.db.sqlalchemy.course_repository_sqlalchemy import (
@@ -119,6 +127,7 @@ def build_runtime() -> RuntimeContainer:
         session_factory = build_session_factory(engine)
         read_model = SqlalchemyAccessReadModel(session_factory)
         course_repository = SqlalchemyCourseRepository(session_factory)
+        audit_repo = SqlalchemyAuditEvidenceRepository(session_factory)
         teacher_directory = UsersServiceTeacherDirectory(
             base_url=settings.users_service_base_url,
             service_token=settings.users_service_token,
@@ -166,11 +175,15 @@ def build_runtime() -> RuntimeContainer:
     )
     facade.register_command_handler(
         PublishCourseCommand,
-        PublishCourseHandler(repository=course_repository, clock=clock),
+        PublishCourseHandler(
+            repository=course_repository, clock=clock, audit_repo=audit_repo
+        ),
     )
     facade.register_command_handler(
         ArchiveCourseCommand,
-        ArchiveCourseHandler(repository=course_repository, clock=clock),
+        ArchiveCourseHandler(
+            repository=course_repository, clock=clock, audit_repo=audit_repo
+        ),
     )
     facade.register_command_handler(
         UpdateModuleCommand,
@@ -244,4 +257,5 @@ def build_runtime() -> RuntimeContainer:
         service_token=settings.service_token,
         access_token_verifier=access_token_verifier,
         access_read_model=read_model,
+        audit_repo=audit_repo,
     )

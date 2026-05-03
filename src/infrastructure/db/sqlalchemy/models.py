@@ -253,3 +253,31 @@ class CourseLessonModel(Base):
     )
     updated_by: Mapped[str] = mapped_column(String(64), nullable=False)
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+
+
+class AuditEvidenceModel(Base):
+    """Retained audit evidence для privileged denials."""
+
+    __tablename__ = "audit_evidence_records"
+
+    audit_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    action: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    occurred_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, index=True
+    )
+    result: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
+    actor_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    actor_roles: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    target_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    target_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    reason_code: Mapped[str | None] = mapped_column(
+        String(64), nullable=True, index=True
+    )
+    request_id: Mapped[str | None] = mapped_column(
+        String(64), nullable=True, index=True
+    )
+    correlation_id: Mapped[str | None] = mapped_column(
+        String(64), nullable=True, index=True
+    )
+    course_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)

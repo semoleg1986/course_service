@@ -150,6 +150,8 @@ class PublishCourseCommand:
     course_id: str
     actor_id: str
     actor_roles: list[str]
+    request_id: str | None = None
+    correlation_id: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -159,3 +161,5 @@ class ArchiveCourseCommand:
     course_id: str
     actor_id: str
     actor_roles: list[str]
+    request_id: str | None = None
+    correlation_id: str | None = None

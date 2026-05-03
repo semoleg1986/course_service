@@ -287,3 +287,95 @@ def test_admin_update_course_resyncs_owner_projection_when_teacher_changes() -> 
     )
     assert update_response.status_code == 200, update_response.text
     assert runtime.access_read_model.get_course_owner(course_id) == "teacher-22"
+
+
+def test_teacher_cannot_publish_other_teacher_course_and_denial_is_retained() -> None:
+    os.environ["COURSE_USE_INMEMORY"] = "1"
+    get_runtime.cache_clear()
+    app = create_app()
+    actor_state = {"actor_id": "admin-1", "roles": ["admin"]}
+    app.dependency_overrides[get_http_actor] = lambda: HttpActor(
+        actor_id=actor_state["actor_id"],
+        roles=actor_state["roles"],
+    )
+    client = TestClient(app)
+
+    create_response = client.post(
+        "/v1/admin/courses",
+        json={
+            "title": "Protected Course",
+            "teacher_id": "teacher-1",
+            "starts_at": "2026-09-01T09:00:00Z",
+            "duration_days": 30,
+        },
+    )
+    assert create_response.status_code == 201, create_response.text
+    course_id = create_response.json()["course_id"]
+
+    actor_state["actor_id"] = "teacher-22"
+    actor_state["roles"] = ["teacher"]
+    denied = client.post(
+        f"/v1/admin/courses/{course_id}/publish",
+        headers={
+            "X-Request-ID": "req-course-publish-denied-1",
+            "X-Correlation-ID": "corr-course-publish-denied-1",
+        },
+    )
+    assert denied.status_code == 403
+
+    runtime = get_runtime()
+    records = runtime.audit_repo.list_all()
+    assert len(records) >= 1
+    record = records[-1]
+    assert record.action == "course.publish"
+    assert record.result == "denied"
+    assert record.course_id == course_id
+    assert record.request_id == "req-course-publish-denied-1"
+    assert record.correlation_id == "corr-course-publish-denied-1"
+    assert record.reason_code == "course_publish_forbidden"
+
+
+def test_teacher_cannot_archive_other_teacher_course_and_denial_is_retained() -> None:
+    os.environ["COURSE_USE_INMEMORY"] = "1"
+    get_runtime.cache_clear()
+    app = create_app()
+    actor_state = {"actor_id": "admin-1", "roles": ["admin"]}
+    app.dependency_overrides[get_http_actor] = lambda: HttpActor(
+        actor_id=actor_state["actor_id"],
+        roles=actor_state["roles"],
+    )
+    client = TestClient(app)
+
+    create_response = client.post(
+        "/v1/admin/courses",
+        json={
+            "title": "Protected Archive Course",
+            "teacher_id": "teacher-1",
+            "starts_at": "2026-09-01T09:00:00Z",
+            "duration_days": 30,
+        },
+    )
+    assert create_response.status_code == 201, create_response.text
+    course_id = create_response.json()["course_id"]
+
+    actor_state["actor_id"] = "teacher-22"
+    actor_state["roles"] = ["teacher"]
+    denied = client.post(
+        f"/v1/admin/courses/{course_id}/archive",
+        headers={
+            "X-Request-ID": "req-course-archive-denied-1",
+            "X-Correlation-ID": "corr-course-archive-denied-1",
+        },
+    )
+    assert denied.status_code == 403
+
+    runtime = get_runtime()
+    records = runtime.audit_repo.list_all()
+    assert len(records) >= 1
+    record = records[-1]
+    assert record.action == "course.archive"
+    assert record.result == "denied"
+    assert record.course_id == course_id
+    assert record.request_id == "req-course-archive-denied-1"
+    assert record.correlation_id == "corr-course-archive-denied-1"
+    assert record.reason_code == "course_archive_forbidden"
