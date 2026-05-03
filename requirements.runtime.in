@@ -1,4 +1,3 @@
-pytest
 fastapi
 uvicorn
 pydantic
@@ -7,10 +6,3 @@ cryptography
 sqlalchemy
 alembic
 psycopg[binary]
-
-black==26.3.1
-isort==5.13.2
-flake8
-mypy
-
-pre-commit==4.5.1
