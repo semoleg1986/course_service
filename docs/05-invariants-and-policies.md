@@ -35,3 +35,29 @@
 - доменные политики обеспечивают role-based разрешения
 - application-хендлеры делают оркестрацию и межагрегатные проверки
 - interface-слой маппит нарушения в RFC7807
+
+## Идемпотентность И Повторы
+
+- `POST /v1/student/courses/{course_id}/lessons/{lesson_id}/complete`
+  - рассматривается как strict-idempotent бизнес-команда по natural key `(student_id, lesson_id)`
+  - повтор не должен создавать дубликаты прогресса и оставляет completed-state неизменным
+- `GET /v1/student/courses/{course_id}/progress`
+  - read-only endpoint; безопасен для повторов и polling
+- `GET /v1/parent/students/{student_id}/courses/progress`
+  - read-only endpoint; безопасен для повторов и polling
+- `GET /v1/parent/students/{student_id}/courses/completed`
+  - read-only endpoint; безопасен для повторов и polling
+- `POST /v1/internal/access/course-access-granted`
+  - replay-safe по `event_id`
+  - повторная доставка одного и того же события должна быть зафиксирована как `replay`, а не как вторичное изменение состояния
+- admin-команды создания и мутации структуры курса:
+  - `POST /v1/admin/courses`
+  - `PATCH /v1/admin/courses/{course_id}`
+  - `POST /v1/admin/courses/{course_id}/modules`
+  - `POST /v1/admin/courses/{course_id}/modules/{module_id}/lessons`
+  - `PATCH /v1/admin/courses/{course_id}/modules/{module_id}`
+  - `PATCH /v1/admin/courses/{course_id}/modules/{module_id}/lessons/{lesson_id}`
+  - по умолчанию не считаются idempotent и не должны ретраиться вслепую без client-side discipline
+- `POST /v1/admin/courses/{course_id}/publish` и `POST /v1/admin/courses/{course_id}/archive`
+  - защищены state-инвариантами
+  - но не объявлены strict-idempotent: повтор может быть отклонен текущим состоянием курса

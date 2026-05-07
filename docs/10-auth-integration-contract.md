@@ -58,6 +58,20 @@
 - endpoint возвращает только факт решения на момент проверки
 - изменение доступа выполняется отдельными командами (`mark-paid`, `approve`, `reject`, `enroll`)
 
+## Replay-Safe Internal Access Grant Event
+
+Для синхронизации доступа между `payments_service` и `course_service` используется отдельный internal endpoint применения события:
+
+- `POST /v1/internal/access/course-access-granted`
+- transport: HTTP JSON
+- auth: сервисный токен в `X-Service-Token`
+
+### Контракт Повтора
+
+- повторная доставка одного и того же `event_id` допускается
+- `course_service` обязан обработать такой повтор безопасно и вернуть результат `replay`, а не применять доступ второй раз
+- это контракт replay-safety, а не внешней пользовательской idempotency-key semantics
+
 ## Коды Ошибок
 
 - `401` — отсутствует/невалиден `X-Service-Token`
