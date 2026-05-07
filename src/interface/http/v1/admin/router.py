@@ -20,6 +20,10 @@ from src.application.courses.commands.dto import (
 from src.application.courses.queries.dto import GetCourseByIdQuery
 from src.domain.errors import AccessDeniedError, InvariantViolationError, NotFoundError
 from src.interface.http.common.actor import HttpActor, get_http_actor
+from src.interface.http.common.rate_limit import (
+    enforce_admin_archive_rate_limit,
+    enforce_admin_publish_rate_limit,
+)
 from src.interface.http.common.timezone import (
     to_local_datetime,
     validate_viewer_timezone,
@@ -282,6 +286,7 @@ def add_lesson(
 def publish_course(
     course_id: str,
     request: Request,
+    _: None = Depends(enforce_admin_publish_rate_limit),
     actor: HttpActor = Depends(get_http_actor),
     facade=Depends(get_facade),
 ) -> CourseResponse:
@@ -310,6 +315,7 @@ def publish_course(
 def archive_course(
     course_id: str,
     request: Request,
+    _: None = Depends(enforce_admin_archive_rate_limit),
     actor: HttpActor = Depends(get_http_actor),
     facade=Depends(get_facade),
 ) -> CourseResponse:

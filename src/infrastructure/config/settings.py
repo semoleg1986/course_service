@@ -21,6 +21,18 @@ class Settings:
     users_service_base_url: str
     users_service_token: str
     users_service_timeout_seconds: float
+    student_complete_rate_limit_max: int
+    student_complete_rate_limit_window_seconds: int
+    student_progress_rate_limit_max: int
+    student_progress_rate_limit_window_seconds: int
+    parent_progress_rate_limit_max: int
+    parent_progress_rate_limit_window_seconds: int
+    parent_completed_rate_limit_max: int
+    parent_completed_rate_limit_window_seconds: int
+    admin_publish_rate_limit_max: int
+    admin_publish_rate_limit_window_seconds: int
+    admin_archive_rate_limit_max: int
+    admin_archive_rate_limit_window_seconds: int
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -48,5 +60,41 @@ class Settings:
             ),
             users_service_timeout_seconds=float(
                 os.getenv("COURSE_USERS_SERVICE_TIMEOUT_SECONDS", "2")
+            ),
+            student_complete_rate_limit_max=int(
+                os.getenv("COURSE_RATE_LIMIT_STUDENT_COMPLETE_MAX", "20")
+            ),
+            student_complete_rate_limit_window_seconds=int(
+                os.getenv("COURSE_RATE_LIMIT_STUDENT_COMPLETE_WINDOW_SECONDS", "60")
+            ),
+            student_progress_rate_limit_max=int(
+                os.getenv("COURSE_RATE_LIMIT_STUDENT_PROGRESS_MAX", "60")
+            ),
+            student_progress_rate_limit_window_seconds=int(
+                os.getenv("COURSE_RATE_LIMIT_STUDENT_PROGRESS_WINDOW_SECONDS", "60")
+            ),
+            parent_progress_rate_limit_max=int(
+                os.getenv("COURSE_RATE_LIMIT_PARENT_PROGRESS_MAX", "60")
+            ),
+            parent_progress_rate_limit_window_seconds=int(
+                os.getenv("COURSE_RATE_LIMIT_PARENT_PROGRESS_WINDOW_SECONDS", "60")
+            ),
+            parent_completed_rate_limit_max=int(
+                os.getenv("COURSE_RATE_LIMIT_PARENT_COMPLETED_MAX", "60")
+            ),
+            parent_completed_rate_limit_window_seconds=int(
+                os.getenv("COURSE_RATE_LIMIT_PARENT_COMPLETED_WINDOW_SECONDS", "60")
+            ),
+            admin_publish_rate_limit_max=int(
+                os.getenv("COURSE_RATE_LIMIT_ADMIN_PUBLISH_MAX", "20")
+            ),
+            admin_publish_rate_limit_window_seconds=int(
+                os.getenv("COURSE_RATE_LIMIT_ADMIN_PUBLISH_WINDOW_SECONDS", "60")
+            ),
+            admin_archive_rate_limit_max=int(
+                os.getenv("COURSE_RATE_LIMIT_ADMIN_ARCHIVE_MAX", "20")
+            ),
+            admin_archive_rate_limit_window_seconds=int(
+                os.getenv("COURSE_RATE_LIMIT_ADMIN_ARCHIVE_WINDOW_SECONDS", "60")
             ),
         )

@@ -15,6 +15,7 @@ from src.application.courses.commands.dto import (
 )
 from src.interface.http.app import create_app
 from src.interface.http.common.actor import HttpActor, get_http_actor
+from src.interface.http.common.rate_limit import reset_rate_limiter
 from src.interface.http.observability import reset_metrics
 from src.interface.http.wiring import get_runtime
 
@@ -22,6 +23,7 @@ from src.interface.http.wiring import get_runtime
 def _client_with_actor(actor_id: str, roles: list[str]) -> TestClient:
     os.environ["COURSE_USE_INMEMORY"] = "1"
     reset_metrics()
+    reset_rate_limiter()
     get_runtime.cache_clear()
     app = create_app()
     app.dependency_overrides[get_http_actor] = lambda: HttpActor(
@@ -372,6 +374,54 @@ def test_student_complete_lesson_records_course_completion_metric() -> None:
         in metrics.text
     )
     assert 'course_completions_total{source="student_complete"} 1' in metrics.text
+
+
+def test_student_complete_lesson_is_rate_limited(monkeypatch) -> None:
+    monkeypatch.setenv("COURSE_RATE_LIMIT_STUDENT_COMPLETE_MAX", "1")
+    monkeypatch.setenv("COURSE_RATE_LIMIT_STUDENT_COMPLETE_WINDOW_SECONDS", "60")
+    client = _client_with_actor("student-1", ["student"])
+    course_id = _prepare_course_with_published_lessons("student-course-rl-complete")
+
+    first = client.post(f"/v1/student/courses/{course_id}/lessons/lesson-1/complete")
+    assert first.status_code == 200, first.text
+
+    second = client.post(
+        f"/v1/student/courses/{course_id}/lessons/lesson-2/complete",
+        headers={
+            "X-Request-ID": "req-course-rl-student-complete-1",
+            "X-Correlation-ID": "corr-course-rl-student-complete-1",
+        },
+    )
+    assert second.status_code == 429, second.text
+    assert (
+        second.json()["detail"]["detail"] == "Слишком много запросов, попробуйте позже."
+    )
+    assert second.json()["detail"]["request_id"] == "req-course-rl-student-complete-1"
+    assert (
+        second.json()["detail"]["correlation_id"] == "corr-course-rl-student-complete-1"
+    )
+
+
+def test_student_progress_is_rate_limited(monkeypatch) -> None:
+    monkeypatch.setenv("COURSE_RATE_LIMIT_STUDENT_PROGRESS_MAX", "1")
+    monkeypatch.setenv("COURSE_RATE_LIMIT_STUDENT_PROGRESS_WINDOW_SECONDS", "60")
+    client = _client_with_actor("student-1", ["student"])
+    course_id = _prepare_course_with_published_lessons("student-course-rl-progress")
+
+    first = client.get(f"/v1/student/courses/{course_id}/progress")
+    assert first.status_code == 200, first.text
+
+    second = client.get(
+        f"/v1/student/courses/{course_id}/progress",
+        headers={
+            "X-Request-ID": "req-course-rl-student-progress-1",
+            "X-Correlation-ID": "corr-course-rl-student-progress-1",
+        },
+    )
+    assert second.status_code == 429, second.text
+    assert (
+        second.json()["detail"]["detail"] == "Слишком много запросов, попробуйте позже."
+    )
 
 
 def test_student_routes_require_bearer_token() -> None:

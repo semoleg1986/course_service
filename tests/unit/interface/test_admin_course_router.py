@@ -6,12 +6,14 @@ from fastapi.testclient import TestClient
 
 from src.interface.http.app import create_app
 from src.interface.http.common.actor import HttpActor
+from src.interface.http.common.rate_limit import reset_rate_limiter
 from src.interface.http.v1.admin.router import get_http_actor
 from src.interface.http.wiring import get_runtime
 
 
 def _client_with_actor(actor_id: str, roles: list[str]) -> TestClient:
     os.environ["COURSE_USE_INMEMORY"] = "1"
+    reset_rate_limiter()
     get_runtime.cache_clear()
     app = create_app()
     app.dependency_overrides[get_http_actor] = lambda: HttpActor(
@@ -379,3 +381,98 @@ def test_teacher_cannot_archive_other_teacher_course_and_denial_is_retained() ->
     assert record.request_id == "req-course-archive-denied-1"
     assert record.correlation_id == "corr-course-archive-denied-1"
     assert record.reason_code == "course_archive_forbidden"
+
+
+def test_admin_publish_is_rate_limited(monkeypatch) -> None:
+    monkeypatch.setenv("COURSE_RATE_LIMIT_ADMIN_PUBLISH_MAX", "1")
+    monkeypatch.setenv("COURSE_RATE_LIMIT_ADMIN_PUBLISH_WINDOW_SECONDS", "60")
+    client = _client_with_actor("admin-1", ["admin"])
+
+    first_create = client.post(
+        "/v1/admin/courses",
+        json={
+            "title": "RL Publish Course 1",
+            "teacher_id": "teacher-1",
+            "starts_at": "2026-09-01T09:00:00Z",
+            "duration_days": 30,
+        },
+    )
+    second_create = client.post(
+        "/v1/admin/courses",
+        json={
+            "title": "RL Publish Course 2",
+            "teacher_id": "teacher-1",
+            "starts_at": "2026-09-01T09:00:00Z",
+            "duration_days": 30,
+        },
+    )
+    assert first_create.status_code == 201, first_create.text
+    assert second_create.status_code == 201, second_create.text
+
+    first_course_id = first_create.json()["course_id"]
+    second_course_id = second_create.json()["course_id"]
+
+    first_publish = client.post(
+        f"/v1/admin/courses/{first_course_id}/publish",
+        headers={"X-Request-ID": "req-course-rl-admin-publish-ok"},
+    )
+    assert first_publish.status_code in {200, 400}, first_publish.text
+
+    second_publish = client.post(
+        f"/v1/admin/courses/{second_course_id}/publish",
+        headers={
+            "X-Request-ID": "req-course-rl-admin-publish-1",
+            "X-Correlation-ID": "corr-course-rl-admin-publish-1",
+        },
+    )
+    assert second_publish.status_code == 429, second_publish.text
+    assert (
+        second_publish.json()["detail"]["detail"]
+        == "Слишком много запросов, попробуйте позже."
+    )
+
+
+def test_admin_archive_is_rate_limited(monkeypatch) -> None:
+    monkeypatch.setenv("COURSE_RATE_LIMIT_ADMIN_ARCHIVE_MAX", "1")
+    monkeypatch.setenv("COURSE_RATE_LIMIT_ADMIN_ARCHIVE_WINDOW_SECONDS", "60")
+    client = _client_with_actor("admin-1", ["admin"])
+
+    first_create = client.post(
+        "/v1/admin/courses",
+        json={
+            "title": "RL Archive Course 1",
+            "teacher_id": "teacher-1",
+            "starts_at": "2026-09-01T09:00:00Z",
+            "duration_days": 30,
+        },
+    )
+    second_create = client.post(
+        "/v1/admin/courses",
+        json={
+            "title": "RL Archive Course 2",
+            "teacher_id": "teacher-1",
+            "starts_at": "2026-09-01T09:00:00Z",
+            "duration_days": 30,
+        },
+    )
+    assert first_create.status_code == 201, first_create.text
+    assert second_create.status_code == 201, second_create.text
+
+    first_archive = client.post(
+        f"/v1/admin/courses/{first_create.json()['course_id']}/archive",
+        headers={"X-Request-ID": "req-course-rl-admin-archive-ok"},
+    )
+    assert first_archive.status_code in {200, 400}, first_archive.text
+
+    second_archive = client.post(
+        f"/v1/admin/courses/{second_create.json()['course_id']}/archive",
+        headers={
+            "X-Request-ID": "req-course-rl-admin-archive-1",
+            "X-Correlation-ID": "corr-course-rl-admin-archive-1",
+        },
+    )
+    assert second_archive.status_code == 429, second_archive.text
+    assert (
+        second_archive.json()["detail"]["detail"]
+        == "Слишком много запросов, попробуйте позже."
+    )

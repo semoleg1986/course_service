@@ -15,6 +15,7 @@ from src.application.courses.commands.dto import (
 )
 from src.interface.http.app import create_app
 from src.interface.http.common.actor import HttpActor, get_http_actor
+from src.interface.http.common.rate_limit import reset_rate_limiter
 from src.interface.http.observability import reset_metrics
 from src.interface.http.wiring import get_runtime
 
@@ -22,6 +23,7 @@ from src.interface.http.wiring import get_runtime
 def _client_with_actor(actor_id: str, roles: list[str]) -> TestClient:
     os.environ["COURSE_USE_INMEMORY"] = "1"
     reset_metrics()
+    reset_rate_limiter()
     get_runtime.cache_clear()
     app = create_app()
     app.dependency_overrides[get_http_actor] = lambda: HttpActor(
@@ -288,3 +290,55 @@ def test_parent_progress_requires_bearer_token() -> None:
 
     response = client.get("/v1/parent/students/student-1/courses/progress")
     assert response.status_code == 401, response.text
+
+
+def test_parent_progress_is_rate_limited(monkeypatch) -> None:
+    monkeypatch.setenv("COURSE_RATE_LIMIT_PARENT_PROGRESS_MAX", "1")
+    monkeypatch.setenv("COURSE_RATE_LIMIT_PARENT_PROGRESS_WINDOW_SECONDS", "60")
+    client = _client_with_actor("parent-1", ["parent"])
+    _prepare_parent_progress_course(
+        slug="parent-progress-rl",
+        student_id="student-1",
+        completed_lessons=1,
+    )
+
+    first = client.get("/v1/parent/students/student-1/courses/progress")
+    assert first.status_code == 200, first.text
+
+    second = client.get(
+        "/v1/parent/students/student-1/courses/progress",
+        headers={
+            "X-Request-ID": "req-course-rl-parent-progress-1",
+            "X-Correlation-ID": "corr-course-rl-parent-progress-1",
+        },
+    )
+    assert second.status_code == 429, second.text
+    assert (
+        second.json()["detail"]["detail"] == "Слишком много запросов, попробуйте позже."
+    )
+
+
+def test_parent_completed_is_rate_limited(monkeypatch) -> None:
+    monkeypatch.setenv("COURSE_RATE_LIMIT_PARENT_COMPLETED_MAX", "1")
+    monkeypatch.setenv("COURSE_RATE_LIMIT_PARENT_COMPLETED_WINDOW_SECONDS", "60")
+    client = _client_with_actor("parent-1", ["parent"])
+    _prepare_parent_progress_course(
+        slug="parent-completed-rl",
+        student_id="student-1",
+        completed_lessons=2,
+    )
+
+    first = client.get("/v1/parent/students/student-1/courses/completed")
+    assert first.status_code == 200, first.text
+
+    second = client.get(
+        "/v1/parent/students/student-1/courses/completed",
+        headers={
+            "X-Request-ID": "req-course-rl-parent-completed-1",
+            "X-Correlation-ID": "corr-course-rl-parent-completed-1",
+        },
+    )
+    assert second.status_code == 429, second.text
+    assert (
+        second.json()["detail"]["detail"] == "Слишком много запросов, попробуйте позже."
+    )

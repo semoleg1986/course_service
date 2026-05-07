@@ -12,6 +12,10 @@ from src.application.access.queries.dto import (
 )
 from src.domain.errors import AccessDeniedError
 from src.interface.http.common.actor import HttpActor, get_http_actor
+from src.interface.http.common.rate_limit import (
+    enforce_parent_completed_rate_limit,
+    enforce_parent_progress_rate_limit,
+)
 from src.interface.http.common.timezone import (
     to_local_datetime,
     validate_viewer_timezone,
@@ -38,6 +42,7 @@ def list_student_course_progress(
     viewer_timezone: str | None = Query(default=None),
     limit: int = Query(default=20, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
+    _: None = Depends(enforce_parent_progress_rate_limit),
     actor: HttpActor = Depends(get_http_actor),
     facade=Depends(get_facade),
 ) -> CourseProgressListResponse:
@@ -87,6 +92,7 @@ def list_student_completed_courses(
     viewer_timezone: str | None = Query(default=None),
     limit: int = Query(default=20, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
+    _: None = Depends(enforce_parent_completed_rate_limit),
     actor: HttpActor = Depends(get_http_actor),
     facade=Depends(get_facade),
 ) -> CompletedCourseListResponse:

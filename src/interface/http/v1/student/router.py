@@ -6,6 +6,10 @@ from src.application.learning.commands.dto import CompleteLessonCommand
 from src.application.learning.queries.dto import GetStudentCourseProgressQuery
 from src.domain.errors import AccessDeniedError, InvariantViolationError, NotFoundError
 from src.interface.http.common.actor import HttpActor, get_http_actor
+from src.interface.http.common.rate_limit import (
+    enforce_student_complete_rate_limit,
+    enforce_student_progress_rate_limit,
+)
 from src.interface.http.observability import increment_counter
 from src.interface.http.v1.schemas.course import (
     StudentCourseProgressResponse,
@@ -23,6 +27,7 @@ router = APIRouter(prefix="/v1/student", tags=["student"])
 def complete_lesson(
     course_id: str,
     lesson_id: str,
+    _: None = Depends(enforce_student_complete_rate_limit),
     actor: HttpActor = Depends(get_http_actor),
     facade=Depends(get_facade),
 ) -> StudentLessonCompletionResponse:
@@ -91,6 +96,7 @@ def complete_lesson(
 )
 def get_course_progress(
     course_id: str,
+    _: None = Depends(enforce_student_progress_rate_limit),
     actor: HttpActor = Depends(get_http_actor),
     facade=Depends(get_facade),
 ) -> StudentCourseProgressResponse:
