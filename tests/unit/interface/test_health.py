@@ -12,6 +12,13 @@ def test_healthz() -> None:
     response = client.get("/healthz")
     assert response.status_code == 200
     assert response.json() == {"status": "ok"}
+    assert response.headers.get("X-Content-Type-Options") == "nosniff"
+    assert response.headers.get("X-Frame-Options") == "DENY"
+    assert response.headers.get("Referrer-Policy") == "no-referrer"
+    assert (
+        response.headers.get("Permissions-Policy")
+        == "camera=(), microphone=(), geolocation=()"
+    )
 
 
 def test_metrics_endpoint_exposes_prometheus_metrics() -> None:
