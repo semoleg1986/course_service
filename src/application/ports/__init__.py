@@ -1,5 +1,3 @@
-"""Порты application-слоя."""
-
 """Порты application слоя course_service."""
 
 from src.application.ports.access_read_model import AccessReadModel
@@ -10,6 +8,12 @@ from src.application.ports.audit_evidence import (
 )
 from src.application.ports.bonus_wallet import BonusWalletPort
 from src.application.ports.clock import Clock
+from src.application.ports.outbox import (
+    OutboxEventRecord,
+    OutboxEventRepository,
+    OutboxEventStatus,
+    OutboxEventType,
+)
 from src.application.ports.parent_student_relation_checker import (
     ParentStudentRelationChecker,
 )
@@ -23,6 +27,10 @@ __all__ = [
     "AccessTokenVerifier",
     "BonusWalletPort",
     "Clock",
+    "OutboxEventRecord",
+    "OutboxEventRepository",
+    "OutboxEventStatus",
+    "OutboxEventType",
     "ParentStudentRelationChecker",
     "StudentParentDirectory",
     "TeacherDirectory",

@@ -16,6 +16,9 @@ from src.infrastructure.db.sqlalchemy.audit_evidence_repository_sqlalchemy impor
 from src.infrastructure.db.sqlalchemy.course_repository_sqlalchemy import (
     SqlalchemyCourseRepository,
 )
+from src.infrastructure.db.sqlalchemy.outbox_repository_sqlalchemy import (
+    SqlalchemyOutboxRepository,
+)
 from src.infrastructure.db.sqlalchemy.session import (
     reset_current_session,
     set_current_session,
@@ -29,6 +32,7 @@ class SqlalchemyRepositoryProvider(RepositoryProvider):
     courses: SqlalchemyCourseRepository
     access_read_model: SqlalchemyAccessReadModel
     audit_evidence: SqlalchemyAuditEvidenceRepository
+    outbox: SqlalchemyOutboxRepository
 
 
 class SqlalchemyUnitOfWork:
@@ -42,6 +46,7 @@ class SqlalchemyUnitOfWork:
             courses=SqlalchemyCourseRepository(session_factory),
             access_read_model=SqlalchemyAccessReadModel(session_factory),
             audit_evidence=SqlalchemyAuditEvidenceRepository(session_factory),
+            outbox=SqlalchemyOutboxRepository(session_factory),
         )
 
     @property

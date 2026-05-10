@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from uuid import uuid4
 
 from src.application.access.queries.dto import CheckCourseAccessQuery
@@ -13,7 +14,13 @@ from src.application.learning.queries.dto import GetStudentCourseProgressQuery
 from src.application.ports.access_read_model import AccessReadModel
 from src.application.ports.bonus_wallet import BonusWalletPort
 from src.application.ports.clock import Clock
+from src.application.ports.outbox import (
+    OutboxEventRecord,
+    OutboxEventStatus,
+    OutboxEventType,
+)
 from src.application.ports.student_parent_directory import StudentParentDirectory
+from src.application.ports.unit_of_work import UnitOfWork
 from src.domain.content.course.entity import Course, Lesson, Module
 from src.domain.content.course.repository import CourseRepository
 from src.domain.errors import AccessDeniedError, InvariantViolationError, NotFoundError
@@ -27,19 +34,19 @@ class CompleteLessonHandler:
     def __init__(
         self,
         *,
-        course_repository: CourseRepository,
         read_model: AccessReadModel,
         clock: Clock,
         check_access_handler,
+        uow_factory,
         student_parent_directory: StudentParentDirectory,
         bonus_wallet: BonusWalletPort,
         bonus_enabled: bool,
         course_completion_bonus_points: int,
     ) -> None:
-        self._course_repository = course_repository
         self._read_model = read_model
         self._clock = clock
         self._check_access_handler = check_access_handler
+        self._uow_factory = uow_factory
         self._student_parent_directory = student_parent_directory
         self._bonus_wallet = bonus_wallet
         self._bonus_enabled = bonus_enabled
@@ -51,20 +58,6 @@ class CompleteLessonHandler:
         }
         if "student" not in role_set:
             raise AccessDeniedError("Операция доступна только student.")
-
-        course = self._course_repository.get(command.course_id)
-        if course is None:
-            raise NotFoundError("Курс не найден.")
-
-        module, lesson, lesson_exists = self._find_lesson_for_completion(
-            course, command.lesson_id
-        )
-        if module is None or lesson is None:
-            if lesson_exists:
-                raise InvariantViolationError(
-                    "Урок существует, но пока недоступен для прохождения."
-                )
-            raise NotFoundError("Урок не найден.")
 
         decision = self._check_access_handler(
             CheckCourseAccessQuery(
@@ -80,86 +73,113 @@ class CompleteLessonHandler:
             raise AccessDeniedError("Нет активного доступа к курсу.")
 
         now = self._clock.now()
-        previous_summary = self._read_model.get_course_progress_summary(
-            course_id=command.course_id,
-            student_id=command.actor_id,
-        )
-        existing = self._read_model.get_lesson_progress(
-            course_id=command.course_id,
-            student_id=command.actor_id,
-            lesson_id=command.lesson_id,
-        )
-        if existing is None:
-            progress = LessonProgress.create(
-                progress_id=str(uuid4()),
-                course_id=command.course_id,
-                module_id=module.module_id,
-                lesson_id=command.lesson_id,
-                student_id=command.actor_id,
-                created_at=now,
-                created_by=command.actor_id,
+        uow = self._uow_factory()
+        try:
+            repos = uow.repositories
+            course = repos.courses.get(command.course_id)
+            if course is None:
+                raise NotFoundError("Курс не найден.")
+
+            module, lesson, lesson_exists = self._find_lesson_for_completion(
+                course, command.lesson_id
             )
-        else:
-            progress = LessonProgress.restore(
-                progress_id=str(existing["progress_id"]),
+            if module is None or lesson is None:
+                if lesson_exists:
+                    raise InvariantViolationError(
+                        "Урок существует, но пока недоступен для прохождения."
+                    )
+                raise NotFoundError("Урок не найден.")
+
+            previous_summary = repos.access_read_model.get_course_progress_summary(
                 course_id=command.course_id,
-                module_id=module.module_id,
-                lesson_id=command.lesson_id,
                 student_id=command.actor_id,
-                status=LessonProgressStatus(str(existing["status"])),
-                created_at=existing["created_at"],
-                created_by=str(existing["created_by"]),
-                updated_at=existing["updated_at"],
-                updated_by=str(existing["updated_by"]),
-                version=int(existing["version"]),
-                started_at=existing["started_at"],
-                completed_at=existing["completed_at"],
-                last_activity_at=existing["last_activity_at"],
+            )
+            existing = repos.access_read_model.get_lesson_progress(
+                course_id=command.course_id,
+                student_id=command.actor_id,
+                lesson_id=command.lesson_id,
+            )
+            if existing is None:
+                progress = LessonProgress.create(
+                    progress_id=str(uuid4()),
+                    course_id=command.course_id,
+                    module_id=module.module_id,
+                    lesson_id=command.lesson_id,
+                    student_id=command.actor_id,
+                    created_at=now,
+                    created_by=command.actor_id,
+                )
+            else:
+                progress = LessonProgress.restore(
+                    progress_id=str(existing["progress_id"]),
+                    course_id=command.course_id,
+                    module_id=module.module_id,
+                    lesson_id=command.lesson_id,
+                    student_id=command.actor_id,
+                    status=LessonProgressStatus(str(existing["status"])),
+                    created_at=existing["created_at"],
+                    created_by=str(existing["created_by"]),
+                    updated_at=existing["updated_at"],
+                    updated_by=str(existing["updated_by"]),
+                    version=int(existing["version"]),
+                    started_at=existing["started_at"],
+                    completed_at=existing["completed_at"],
+                    last_activity_at=existing["last_activity_at"],
+                )
+
+            progress.complete(changed_at=now, changed_by=command.actor_id)
+            repos.access_read_model.upsert_lesson_progress(
+                course_id=progress.course_id,
+                module_id=progress.module_id,
+                lesson_id=progress.lesson_id,
+                student_id=progress.student_id,
+                progress_id=progress.progress_id,
+                status=progress.status.value,
+                created_at=progress.meta.created_at,
+                created_by=progress.meta.created_by,
+                updated_at=progress.meta.updated_at,
+                updated_by=progress.meta.updated_by,
+                version=progress.meta.version,
+                started_at=progress.started_at,
+                completed_at=progress.completed_at,
+                last_activity_at=progress.last_activity_at,
             )
 
-        progress.complete(changed_at=now, changed_by=command.actor_id)
-        self._read_model.upsert_lesson_progress(
-            course_id=progress.course_id,
-            module_id=progress.module_id,
-            lesson_id=progress.lesson_id,
-            student_id=progress.student_id,
-            progress_id=progress.progress_id,
-            status=progress.status.value,
-            created_at=progress.meta.created_at,
-            created_by=progress.meta.created_by,
-            updated_at=progress.meta.updated_at,
-            updated_by=progress.meta.updated_by,
-            version=progress.meta.version,
-            started_at=progress.started_at,
-            completed_at=progress.completed_at,
-            last_activity_at=progress.last_activity_at,
-        )
-
-        summary = evaluate_course_progress_summary(
-            course=course,
-            student_id=command.actor_id,
-            read_model=self._read_model,
-            evaluated_at=now,
-        )
-        if self._should_accrue_course_completion_bonus(
-            previous_status=(
-                previous_summary[0] if previous_summary is not None else None
-            ),
-            new_status=summary.status.value,
-        ):
-            self._accrue_course_completion_bonus(
+            summary = evaluate_course_progress_summary(
+                course=course,
+                student_id=command.actor_id,
+                read_model=repos.access_read_model,
+                evaluated_at=now,
+            )
+            if self._should_accrue_course_completion_bonus(
+                previous_status=(
+                    previous_summary[0] if previous_summary is not None else None
+                ),
+                new_status=summary.status.value,
+            ):
+                self._enqueue_course_completion_bonus(
+                    uow=uow,
+                    course_id=command.course_id,
+                    student_id=command.actor_id,
+                    occurred_at=now,
+                )
+            repos.access_read_model.store_course_progress_summary(
                 course_id=command.course_id,
                 student_id=command.actor_id,
+                status=summary.status.value,
+                progress_percent=summary.progress_percent,
+                completed_lessons=summary.completed_lessons,
+                total_lessons=summary.total_lessons,
+                completed_at=summary.completed_at,
             )
-        self._read_model.store_course_progress_summary(
-            course_id=command.course_id,
-            student_id=command.actor_id,
-            status=summary.status.value,
-            progress_percent=summary.progress_percent,
-            completed_lessons=summary.completed_lessons,
-            total_lessons=summary.total_lessons,
-            completed_at=summary.completed_at,
-        )
+            uow.commit()
+        except Exception:
+            uow.rollback()
+            raise
+        finally:
+            uow.close()
+
+        self.dispatch_pending_bonus_side_effects()
         return StudentLessonCompletionResult(
             course_id=command.course_id,
             module_id=module.module_id,
@@ -183,19 +203,70 @@ class CompleteLessonHandler:
             and new_status == "completed"
         )
 
-    def _accrue_course_completion_bonus(
-        self, *, course_id: str, student_id: str
+    def _enqueue_course_completion_bonus(
+        self, *, uow: UnitOfWork, course_id: str, student_id: str, occurred_at
     ) -> None:
         reference_id = f"course-completed:{course_id}:{student_id}"
         parent_ids = self._student_parent_directory.list_parent_ids(student_id)
         for parent_id in sorted({item.strip() for item in parent_ids if item.strip()}):
-            self._bonus_wallet.accrue(
-                parent_id=parent_id,
-                amount=self._course_completion_bonus_points,
-                reason_code="course_completed_reward",
-                reference_id=reference_id,
-                idempotency_key=f"{reference_id}:{parent_id}",
+            aggregate_id = f"{course_id}:{student_id}:{parent_id}"
+            uow.repositories.outbox.add(
+                OutboxEventRecord(
+                    event_id=str(uuid4()),
+                    aggregate_type="course_completion",
+                    aggregate_id=aggregate_id,
+                    event_type=OutboxEventType.COURSE_COMPLETION_BONUS_ACCRUAL,
+                    payload_json=json.dumps(
+                        {
+                            "parent_id": parent_id,
+                            "amount": self._course_completion_bonus_points,
+                            "reason_code": "course_completed_reward",
+                            "reference_id": reference_id,
+                            "idempotency_key": f"{reference_id}:{parent_id}",
+                        },
+                        ensure_ascii=True,
+                        sort_keys=True,
+                    ),
+                    status=OutboxEventStatus.PENDING,
+                    attempt_count=0,
+                    available_at=occurred_at,
+                    created_at=occurred_at,
+                )
             )
+
+    def dispatch_pending_bonus_side_effects(self, *, limit: int = 100) -> None:
+        read_uow = self._uow_factory()
+        try:
+            events = read_uow.repositories.outbox.list_pending(limit=limit)
+        finally:
+            read_uow.close()
+
+        for event in events:
+            try:
+                payload = json.loads(event.payload_json)
+                self._bonus_wallet.accrue(
+                    parent_id=payload["parent_id"],
+                    amount=int(payload["amount"]),
+                    reason_code=payload["reason_code"],
+                    reference_id=payload["reference_id"],
+                    idempotency_key=payload["idempotency_key"],
+                )
+            except Exception as exc:
+                uow = self._uow_factory()
+                try:
+                    uow.repositories.outbox.save(event.mark_failed(error=str(exc)))
+                    uow.commit()
+                finally:
+                    uow.close()
+            else:
+                uow = self._uow_factory()
+                try:
+                    uow.repositories.outbox.save(
+                        event.mark_processed(at=self._clock.now())
+                    )
+                    uow.commit()
+                finally:
+                    uow.close()
 
     @staticmethod
     def _find_lesson_for_completion(

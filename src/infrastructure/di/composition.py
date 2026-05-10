@@ -65,6 +65,7 @@ from src.infrastructure.db.inmemory.audit_evidence_repository import (
     InMemoryAuditEvidenceRepository,
 )
 from src.infrastructure.db.inmemory.course_repository import InMemoryCourseRepository
+from src.infrastructure.db.inmemory.outbox_repository import InMemoryOutboxRepository
 from src.infrastructure.db.inmemory.uow import InMemoryUnitOfWork
 from src.infrastructure.users.inmemory_parent_student_relation_checker import (
     InMemoryParentStudentRelationChecker,
@@ -94,6 +95,7 @@ class RuntimeContainer:
     access_read_model: AccessReadModel
     audit_repo: object
     bonus_wallet: object
+    outbox_repo: object
 
 
 def build_runtime() -> RuntimeContainer:
@@ -112,6 +114,7 @@ def build_runtime() -> RuntimeContainer:
         read_model = InMemoryAccessReadModel()
         course_repository = InMemoryCourseRepository()
         audit_repo = InMemoryAuditEvidenceRepository()
+        outbox_repo = InMemoryOutboxRepository()
         teacher_directory = InMemoryTeacherDirectory()
         relation_checker = InMemoryParentStudentRelationChecker()
         student_parent_directory = InMemoryStudentParentDirectory()
@@ -128,6 +131,9 @@ def build_runtime() -> RuntimeContainer:
         from src.infrastructure.db.sqlalchemy.course_repository_sqlalchemy import (
             SqlalchemyCourseRepository,
         )
+        from src.infrastructure.db.sqlalchemy.outbox_repository_sqlalchemy import (
+            SqlalchemyOutboxRepository,
+        )
         from src.infrastructure.db.sqlalchemy.session import (
             build_engine,
             build_session_factory,
@@ -143,6 +149,7 @@ def build_runtime() -> RuntimeContainer:
         audit_repo = audit_repo_sqlalchemy.SqlalchemyAuditEvidenceRepository(
             session_factory
         )
+        outbox_repo = SqlalchemyOutboxRepository(session_factory)
         teacher_directory = UsersServiceTeacherDirectory(
             base_url=settings.users_service_base_url,
             service_token=settings.users_service_token,
@@ -176,6 +183,7 @@ def build_runtime() -> RuntimeContainer:
                 course_repository=course_repository,
                 access_read_model=read_model,
                 audit_evidence=audit_repo,
+                outbox=outbox_repo,
             )
 
         uow_factory = build_inmemory_uow
@@ -254,10 +262,10 @@ def build_runtime() -> RuntimeContainer:
     facade.register_command_handler(
         CompleteLessonCommand,
         CompleteLessonHandler(
-            course_repository=course_repository,
             read_model=read_model,
             clock=clock,
             check_access_handler=check_access_handler,
+            uow_factory=uow_factory,
             student_parent_directory=student_parent_directory,
             bonus_wallet=bonus_wallet,
             bonus_enabled=settings.bonus_enabled,
@@ -298,4 +306,5 @@ def build_runtime() -> RuntimeContainer:
         access_read_model=read_model,
         audit_repo=audit_repo,
         bonus_wallet=bonus_wallet,
+        outbox_repo=outbox_repo,
     )

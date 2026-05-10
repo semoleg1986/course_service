@@ -6,6 +6,7 @@ from typing import Protocol
 
 from src.application.ports.access_read_model import AccessReadModel
 from src.application.ports.audit_evidence import AuditEvidenceRepository
+from src.application.ports.outbox import OutboxEventRepository
 from src.domain.content.course.repository import CourseRepository
 
 
@@ -23,3 +24,7 @@ class RepositoryProvider(Protocol):
     @property
     def audit_evidence(self) -> AuditEvidenceRepository:
         """Append-only retained audit evidence."""
+
+    @property
+    def outbox(self) -> OutboxEventRepository:
+        """Persisted outbox для надежной доставки side effect."""

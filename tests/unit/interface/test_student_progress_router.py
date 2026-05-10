@@ -389,6 +389,42 @@ def test_student_complete_lesson_records_course_completion_metric(monkeypatch) -
     assert len(runtime.bonus_wallet.accruals) == 1
 
 
+def test_student_complete_lesson_retries_bonus_outbox_after_failure(
+    monkeypatch,
+) -> None:
+    monkeypatch.setenv("COURSE_BONUS_ENABLED", "1")
+    monkeypatch.setenv("COURSE_BONUS_COURSE_COMPLETION_POINTS", "25")
+    client = _client_with_actor("student-1", ["student"])
+    course_id = _prepare_course_with_published_lessons("student-course-outbox-1")
+    runtime = get_runtime()
+
+    original_accrue = runtime.bonus_wallet.accrue
+
+    def _failing_accrue(**kwargs) -> None:  # type: ignore[no-untyped-def]
+        raise RuntimeError("bonus wallet unavailable")
+
+    monkeypatch.setattr(runtime.bonus_wallet, "accrue", _failing_accrue)
+
+    first = client.post(f"/v1/student/courses/{course_id}/lessons/lesson-1/complete")
+    assert first.status_code == 200, first.text
+
+    second = client.post(f"/v1/student/courses/{course_id}/lessons/lesson-2/complete")
+    assert second.status_code == 200, second.text
+    assert second.json()["course_status"] == "completed"
+    assert runtime.bonus_wallet.accruals == []
+
+    pending = runtime.outbox_repo.list_pending()
+    assert len(pending) == 1
+    assert pending[0].attempt_count == 1
+
+    monkeypatch.setattr(runtime.bonus_wallet, "accrue", original_accrue)
+
+    repeated = client.post(f"/v1/student/courses/{course_id}/lessons/lesson-2/complete")
+    assert repeated.status_code == 200, repeated.text
+    assert len(runtime.outbox_repo.list_pending()) == 0
+    assert len(runtime.bonus_wallet.accruals) == 1
+
+
 def test_student_complete_lesson_is_rate_limited(monkeypatch) -> None:
     monkeypatch.setenv("COURSE_RATE_LIMIT_STUDENT_COMPLETE_MAX", "1")
     monkeypatch.setenv("COURSE_RATE_LIMIT_STUDENT_COMPLETE_WINDOW_SECONDS", "60")

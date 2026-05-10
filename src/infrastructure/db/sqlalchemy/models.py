@@ -13,6 +13,7 @@ from sqlalchemy import (
     PrimaryKeyConstraint,
     String,
     Text,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.types import JSON
@@ -281,3 +282,35 @@ class AuditEvidenceModel(Base):
         String(64), nullable=True, index=True
     )
     course_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
+
+
+class CourseOutboxEventModel(Base):
+    """Persisted outbox for reliable course completion side effects."""
+
+    __tablename__ = "course_outbox_events"
+    __table_args__ = (
+        UniqueConstraint(
+            "aggregate_type",
+            "aggregate_id",
+            "event_type",
+            name="uq_course_outbox_aggregate_event_type",
+        ),
+    )
+
+    event_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    aggregate_type: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    aggregate_id: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
+    event_type: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    payload_json: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(String(16), nullable=False, index=True)
+    attempt_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    available_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, index=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, index=True
+    )
+    processed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
