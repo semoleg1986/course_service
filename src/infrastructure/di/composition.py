@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Callable
 
 from src.application.access.commands.dto import ApplyAccessGrantedEventCommand
 from src.application.access.handlers.access_event_handlers import (
@@ -96,6 +97,7 @@ class RuntimeContainer:
     audit_repo: object
     bonus_wallet: object
     outbox_repo: object
+    bonus_outbox_dispatcher: Callable[..., None]
 
 
 def build_runtime() -> RuntimeContainer:
@@ -259,18 +261,19 @@ def build_runtime() -> RuntimeContainer:
         ApplyAccessGrantedEventCommand,
         ApplyAccessGrantedEventHandler(read_model=read_model),
     )
+    complete_lesson_handler = CompleteLessonHandler(
+        read_model=read_model,
+        clock=clock,
+        check_access_handler=check_access_handler,
+        uow_factory=uow_factory,
+        student_parent_directory=student_parent_directory,
+        bonus_wallet=bonus_wallet,
+        bonus_enabled=settings.bonus_enabled,
+        course_completion_bonus_points=settings.bonus_course_completion_points,
+    )
     facade.register_command_handler(
         CompleteLessonCommand,
-        CompleteLessonHandler(
-            read_model=read_model,
-            clock=clock,
-            check_access_handler=check_access_handler,
-            uow_factory=uow_factory,
-            student_parent_directory=student_parent_directory,
-            bonus_wallet=bonus_wallet,
-            bonus_enabled=settings.bonus_enabled,
-            course_completion_bonus_points=settings.bonus_course_completion_points,
-        ),
+        complete_lesson_handler,
     )
     facade.register_query_handler(
         GetStudentCourseProgressQuery,
@@ -307,4 +310,7 @@ def build_runtime() -> RuntimeContainer:
         audit_repo=audit_repo,
         bonus_wallet=bonus_wallet,
         outbox_repo=outbox_repo,
+        bonus_outbox_dispatcher=(
+            complete_lesson_handler.dispatch_pending_bonus_side_effects
+        ),
     )
