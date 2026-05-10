@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from src.application.common.dto import (
     CourseResult,
+    PublicCourseCardResult,
     PublicCourseModuleResult,
     PublicCourseResult,
 )
@@ -110,4 +111,22 @@ def to_public_course_result(course: Course) -> PublicCourseResult:
         seo_robots=course.seo.robots,
         seo_og_image_url=course.seo.og_image_url,
         modules=published_modules,
+    )
+
+
+def to_public_course_card_result(course: Course) -> PublicCourseCardResult:
+    """Преобразует опубликованный Course в summary DTO для public catalog."""
+
+    return PublicCourseCardResult(
+        course_id=course.course_id,
+        slug=course.slug.value,
+        title=course.title,
+        description=getattr(course, "description", None),
+        level=course.audience.level,
+        lessons_total=course.lessons_total,
+        modules_count=course.modules_count,
+        cover_image_url=course.delivery.cover_image_url,
+        is_live_enabled=course.delivery.is_live_enabled,
+        teacher_display_name=course.teacher_display_name,
+        published_at=course.published_at,
     )

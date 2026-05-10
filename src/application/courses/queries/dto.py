@@ -19,3 +19,11 @@ class GetPublishedCourseBySlugQuery:
     """Возвращает опубликованный курс по slug для public API."""
 
     slug: str
+
+
+@dataclass(frozen=True, slots=True)
+class ListPublishedCoursesQuery:
+    """Возвращает public catalog опубликованных курсов."""
+
+    limit: int = 100
+    offset: int = 0

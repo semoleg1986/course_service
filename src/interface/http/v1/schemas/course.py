@@ -166,6 +166,22 @@ class PublicCourseModuleResponse(BaseModel):
     lessons_count: int = Field(ge=0)
 
 
+class PublicCourseCardResponse(BaseModel):
+    """Краткий public response для catalog."""
+
+    course_id: str
+    slug: str
+    title: str
+    description: str | None
+    level: str
+    lessons_total: int = Field(ge=0)
+    modules_count: int = Field(ge=0)
+    cover_image_url: str | None
+    is_live_enabled: bool
+    teacher_display_name: str | None
+    published_at: datetime | None
+
+
 class CourseResponse(BaseModel):
     """Ответ курса."""
 

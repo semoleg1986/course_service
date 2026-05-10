@@ -7,7 +7,10 @@ from dataclasses import asdict
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from src.application.common.dto import PublicCourseResult
-from src.application.courses.queries.dto import GetPublishedCourseBySlugQuery
+from src.application.courses.queries.dto import (
+    GetPublishedCourseBySlugQuery,
+    ListPublishedCoursesQuery,
+)
 from src.domain.errors import NotFoundError
 from src.interface.http.common.timezone import (
     to_local_datetime,
@@ -15,6 +18,7 @@ from src.interface.http.common.timezone import (
 )
 from src.interface.http.observability import increment_counter
 from src.interface.http.v1.schemas.course import (
+    PublicCourseCardResponse,
     PublicCourseModuleResponse,
     PublicCourseResponse,
     SeoResponse,
@@ -92,3 +96,25 @@ def get_public_course(
         result="success",
     )
     return _to_public_course_response(result, viewer_timezone=viewer_timezone)
+
+
+@router.get("/courses", response_model=list[PublicCourseCardResponse])
+def list_public_courses(
+    limit: int = Query(default=100, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
+    facade=Depends(get_facade),
+) -> list[PublicCourseCardResponse]:
+    """Возвращает опубликованные курсы для public catalog."""
+
+    results = facade.query(
+        ListPublishedCoursesQuery(
+            limit=limit,
+            offset=offset,
+        )
+    )
+    increment_counter(
+        "public_course_requests_total",
+        "Total public course read requests.",
+        result="list_success",
+    )
+    return [PublicCourseCardResponse(**asdict(item)) for item in results]

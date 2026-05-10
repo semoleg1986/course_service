@@ -93,6 +93,76 @@ def test_public_course_returns_published_course_with_viewer_timezone() -> None:
     assert 'public_course_requests_total{result="success"} 1' in metrics.text
 
 
+def test_public_course_catalog_returns_only_published_courses() -> None:
+    client = _client_with_admin()
+
+    published_response = client.post(
+        "/v1/admin/courses",
+        json={
+            "title": "Published Catalog Course",
+            "description": "Visible in catalog",
+            "teacher_id": "teacher-1",
+            "starts_at": "2026-09-01T09:00:00Z",
+            "duration_days": 30,
+            "slug": "published-catalog-course",
+        },
+    )
+    assert published_response.status_code == 201, published_response.text
+    published_course_id = published_response.json()["course_id"]
+
+    module_response = client.post(
+        f"/v1/admin/courses/{published_course_id}/modules",
+        json={"module_id": "module-public-list-1", "title": "Module 1"},
+    )
+    assert module_response.status_code == 200, module_response.text
+
+    lesson_response = client.post(
+        f"/v1/admin/courses/{published_course_id}/modules/module-public-list-1/lessons",
+        json={"lesson_id": "lesson-public-list-1", "title": "Lesson 1"},
+    )
+    assert lesson_response.status_code == 200, lesson_response.text
+
+    module_publish_response = client.patch(
+        f"/v1/admin/courses/{published_course_id}/modules/module-public-list-1",
+        json={"status": "published"},
+    )
+    assert module_publish_response.status_code == 200, module_publish_response.text
+
+    lesson_publish_response = client.patch(
+        f"/v1/admin/courses/{published_course_id}/modules/module-public-list-1/lessons/lesson-public-list-1",
+        json={"status": "published"},
+    )
+    assert lesson_publish_response.status_code == 200, lesson_publish_response.text
+
+    publish_response = client.post(f"/v1/admin/courses/{published_course_id}/publish")
+    assert publish_response.status_code == 200, publish_response.text
+
+    draft_response = client.post(
+        "/v1/admin/courses",
+        json={
+            "title": "Draft Catalog Course",
+            "description": "Should stay hidden",
+            "teacher_id": "teacher-1",
+            "starts_at": "2026-10-01T09:00:00Z",
+            "duration_days": 45,
+            "slug": "draft-catalog-course",
+        },
+    )
+    assert draft_response.status_code == 201, draft_response.text
+
+    catalog_response = client.get("/v1/public/courses?limit=20&offset=0")
+    assert catalog_response.status_code == 200, catalog_response.text
+    body = catalog_response.json()
+    assert len(body) == 1
+    assert body[0]["slug"] == "published-catalog-course"
+    assert body[0]["title"] == "Published Catalog Course"
+    assert body[0]["lessons_total"] == 1
+
+    metrics = client.get("/metrics")
+    assert metrics.status_code == 200
+    assert 'public_course_requests_total{result="list_success"} 1' in metrics.text
+
+
 def test_public_course_hides_non_published_course() -> None:
     client = _client_with_admin()
 

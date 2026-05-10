@@ -7,7 +7,11 @@ from collections.abc import Callable
 from uuid import uuid4
 
 from src.application.common.dto import CourseResult, PublicCourseResult
-from src.application.common.mappers import to_course_result, to_public_course_result
+from src.application.common.mappers import (
+    to_course_result,
+    to_public_course_card_result,
+    to_public_course_result,
+)
 from src.application.courses.commands.dto import (
     AddLessonCommand,
     AddModuleCommand,
@@ -21,6 +25,7 @@ from src.application.courses.commands.dto import (
 from src.application.courses.queries.dto import (
     GetCourseByIdQuery,
     GetPublishedCourseBySlugQuery,
+    ListPublishedCoursesQuery,
 )
 from src.application.ports.audit_evidence import AuditEvidenceRecord
 from src.application.ports.clock import Clock
@@ -360,6 +365,20 @@ class GetPublishedCourseBySlugHandler:
         if course is None or course.publish_state != PublishState.PUBLISHED:
             raise NotFoundError("Опубликованный курс не найден.")
         return to_public_course_result(course)
+
+
+class ListPublishedCoursesHandler:
+    """Возвращает public catalog опубликованных курсов."""
+
+    def __init__(self, *, repository: CourseRepository) -> None:
+        self._repository = repository
+
+    def __call__(self, query: ListPublishedCoursesQuery) -> list[dict]:
+        courses = self._repository.list_published(
+            limit=query.limit,
+            offset=query.offset,
+        )
+        return [to_public_course_card_result(course) for course in courses]
 
 
 class AddModuleHandler:

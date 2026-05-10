@@ -123,6 +123,23 @@ class PublicCourseModuleResult:
 
 
 @dataclass(frozen=True, slots=True)
+class PublicCourseCardResult:
+    """Краткий DTO опубликованного курса для public catalog."""
+
+    course_id: str
+    slug: str
+    title: str
+    description: str | None
+    level: str
+    lessons_total: int
+    modules_count: int
+    cover_image_url: str | None
+    is_live_enabled: bool
+    teacher_display_name: str | None
+    published_at: datetime | None
+
+
+@dataclass(frozen=True, slots=True)
 class PublicCourseResult:
     """DTO опубликованного курса для public response."""
 

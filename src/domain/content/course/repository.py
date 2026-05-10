@@ -14,5 +14,8 @@ class CourseRepository(Protocol):
     def get_by_slug(self, slug: str) -> Course | None:
         """Получить курс по slug. Возвращает None, если курс не найден."""
 
+    def list_published(self, *, limit: int = 100, offset: int = 0) -> list[Course]:
+        """Вернуть опубликованные курсы для public catalog."""
+
     def save(self, course: Course) -> None:
         """Сохранить агрегат Course."""

@@ -44,6 +44,21 @@ class SqlalchemyCourseRepository:
             model = db.execute(stmt).scalar_one_or_none()
             return self._to_entity_with_children(model) if model else None
 
+    def list_published(self, *, limit: int = 100, offset: int = 0) -> list[Course]:
+        with managed_session(self._session_factory) as db:
+            stmt = (
+                select(CourseCatalogModel)
+                .where(CourseCatalogModel.publish_state == PublishState.PUBLISHED.value)
+                .order_by(
+                    CourseCatalogModel.published_at.desc().nullslast(),
+                    CourseCatalogModel.created_at.desc(),
+                )
+                .offset(offset)
+                .limit(limit)
+            )
+            models = db.execute(stmt).scalars().all()
+            return [self._to_entity_with_children(model) for model in models]
+
     def save(self, course: Course) -> None:
         with managed_transaction(self._session_factory) as db:
             model = db.get(CourseCatalogModel, course.course_id)

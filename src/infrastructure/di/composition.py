@@ -38,6 +38,7 @@ from src.application.courses.handlers.manage_course_handlers import (
     CreateCourseHandler,
     GetCourseByIdHandler,
     GetPublishedCourseBySlugHandler,
+    ListPublishedCoursesHandler,
     PublishCourseHandler,
     UpdateCourseHandler,
     UpdateLessonHandler,
@@ -46,6 +47,7 @@ from src.application.courses.handlers.manage_course_handlers import (
 from src.application.courses.queries.dto import (
     GetCourseByIdQuery,
     GetPublishedCourseBySlugQuery,
+    ListPublishedCoursesQuery,
 )
 from src.application.facade.application_facade import ApplicationFacade
 from src.application.learning.commands.dto import CompleteLessonCommand
@@ -254,6 +256,10 @@ def build_runtime() -> RuntimeContainer:
     facade.register_query_handler(
         GetPublishedCourseBySlugQuery,
         GetPublishedCourseBySlugHandler(repository=course_repository),
+    )
+    facade.register_query_handler(
+        ListPublishedCoursesQuery,
+        ListPublishedCoursesHandler(repository=course_repository),
     )
     check_access_handler = CheckCourseAccessHandler(read_model=read_model, clock=clock)
     facade.register_query_handler(CheckCourseAccessQuery, check_access_handler)
