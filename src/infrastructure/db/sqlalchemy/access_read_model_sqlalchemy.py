@@ -130,6 +130,9 @@ class SqlalchemyAccessReadModel:
                 row.started_at = started_at
                 row.completed_at = completed_at
                 row.last_activity_at = last_activity_at
+            # Shared UoW sessions use autoflush=False; explicit flush keeps
+            # subsequent reads in the same transaction consistent.
+            db.flush()
 
     def get_lesson_progress(
         self, *, course_id: str, student_id: str, lesson_id: str
@@ -207,6 +210,8 @@ class SqlalchemyAccessReadModel:
                 row.completed_lessons = completed_lessons
                 row.total_lessons = total_lessons
                 row.completed_at = completed_at
+            # Keep same-transaction readers consistent before outer commit.
+            db.flush()
 
     def get_course_progress_summary(
         self, *, course_id: str, student_id: str

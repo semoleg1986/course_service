@@ -9,6 +9,10 @@ from src.infrastructure.db.sqlalchemy.access_read_model_sqlalchemy import (
     SqlalchemyAccessReadModel,
 )
 from src.infrastructure.db.sqlalchemy.base import Base
+from src.infrastructure.db.sqlalchemy.session import (
+    reset_current_session,
+    set_current_session,
+)
 
 
 def _now() -> datetime:
@@ -161,3 +165,58 @@ def test_sqlalchemy_progress_read_model_stores_lesson_and_course_progress() -> N
         course_id="course-1",
         student_id="student-1",
     ) == ("completed", 100.0, 2, 2, now)
+
+
+def test_sqlalchemy_progress_read_model_flushes_with_shared_session() -> None:
+    engine = create_engine("sqlite+pysqlite:///:memory:", future=True)
+    Base.metadata.create_all(bind=engine)
+    session_factory = sessionmaker(
+        bind=engine,
+        autoflush=False,
+        autocommit=False,
+        future=True,
+    )
+    read_model = SqlalchemyAccessReadModel(session_factory)
+    now = _now()
+
+    with session_factory() as session:
+        token = set_current_session(session)
+        try:
+            read_model.upsert_lesson_progress(
+                course_id="course-1",
+                module_id="module-1",
+                lesson_id="lesson-1",
+                student_id="student-1",
+                progress_id="lp-1",
+                status="completed",
+                created_at=now,
+                created_by="student-1",
+                updated_at=now,
+                updated_by="student-1",
+                version=2,
+                started_at=now,
+                completed_at=now,
+                last_activity_at=now,
+            )
+
+            assert read_model.list_completed_lesson_ids(
+                course_id="course-1",
+                student_id="student-1",
+            ) == ["lesson-1"]
+
+            read_model.store_course_progress_summary(
+                course_id="course-1",
+                student_id="student-1",
+                status="completed",
+                progress_percent=100.0,
+                completed_lessons=1,
+                total_lessons=1,
+                completed_at=now,
+            )
+            assert read_model.get_course_progress_summary(
+                course_id="course-1",
+                student_id="student-1",
+            ) == ("completed", 100.0, 1, 1, now)
+        finally:
+            reset_current_session(token)
+            session.rollback()
