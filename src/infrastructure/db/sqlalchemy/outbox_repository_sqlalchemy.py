@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session, sessionmaker
 
 from src.application.ports.outbox import (
@@ -41,6 +41,27 @@ class SqlalchemyOutboxRepository:
                 .limit(limit)
             ).scalars()
             return [self._to_entity(row) for row in rows]
+
+    def count_pending(self) -> int:
+        with managed_session(self._session_factory) as db:
+            return int(
+                db.scalar(
+                    select(func.count())
+                    .select_from(CourseOutboxEventModel)
+                    .where(
+                        CourseOutboxEventModel.status == OutboxEventStatus.PENDING.value
+                    )
+                )
+                or 0
+            )
+
+    def oldest_pending_created_at(self):
+        with managed_session(self._session_factory) as db:
+            return db.scalar(
+                select(func.min(CourseOutboxEventModel.created_at)).where(
+                    CourseOutboxEventModel.status == OutboxEventStatus.PENDING.value
+                )
+            )
 
     @staticmethod
     def _to_model(event: OutboxEventRecord) -> CourseOutboxEventModel:

@@ -177,11 +177,18 @@ def install_observability(app: FastAPI) -> None:
                 _REQUESTS_TOTAL.items()
             ):
                 lines.append(
-                    f'http_requests_total{{service="{service}",method="{method}",path="{path}",status="{status}"}} {value}'
+                    (
+                        f'http_requests_total{{service="{service}",'
+                        f'method="{method}",path="{path}",status="{status}"}} '
+                        f"{value}"
+                    )
                 )
             lines.extend(
                 [
-                    "# HELP http_request_duration_seconds HTTP request latency in seconds.",
+                    (
+                        "# HELP http_request_duration_seconds HTTP request latency "
+                        "in seconds."
+                    ),
                     "# TYPE http_request_duration_seconds summary",
                 ]
             )
@@ -196,13 +203,19 @@ def install_observability(app: FastAPI) -> None:
                 lines.append(f"http_request_duration_seconds_count{{{labels}}} {count}")
             lines.extend(
                 [
-                    "# HELP http_errors_total Total HTTP error responses (status >= 400).",
+                    (
+                        "# HELP http_errors_total Total HTTP error responses "
+                        "(status >= 400)."
+                    ),
                     "# TYPE http_errors_total counter",
                 ]
             )
             for (service, path, status), value in sorted(_ERRORS_TOTAL.items()):
                 lines.append(
-                    f'http_errors_total{{service="{service}",path="{path}",status="{status}"}} {value}'
+                    (
+                        f'http_errors_total{{service="{service}",path="{path}",'
+                        f'status="{status}"}} {value}'
+                    )
                 )
             for name in sorted(_CUSTOM_COUNTER_DOCS):
                 lines.extend(
@@ -223,6 +236,42 @@ def install_observability(app: FastAPI) -> None:
                         lines.append(f"{name}{{{labels}}} {value}")
                     else:
                         lines.append(f"{name} {value}")
+
+        try:
+            from src.interface.http.wiring import get_runtime
+
+            runtime = get_runtime()
+            pending_total = runtime.outbox_repo.count_pending()
+            oldest_created_at = runtime.outbox_repo.oldest_pending_created_at()
+        except Exception:
+            pending_total = 0
+            oldest_created_at = None
+
+        oldest_age_seconds = 0.0
+        if oldest_created_at is not None:
+            oldest_age_seconds = max(
+                0.0,
+                (
+                    datetime.now(timezone.utc)
+                    - oldest_created_at.astimezone(timezone.utc)
+                ).total_seconds(),
+            )
+        lines.extend(
+            [
+                "# HELP outbox_pending_total Total pending outbox events.",
+                "# TYPE outbox_pending_total gauge",
+                f'outbox_pending_total{{service="{_SERVICE}"}} {pending_total}',
+                (
+                    "# HELP outbox_oldest_pending_age_seconds Age of the oldest "
+                    "pending outbox event."
+                ),
+                "# TYPE outbox_oldest_pending_age_seconds gauge",
+                (
+                    f'outbox_oldest_pending_age_seconds{{service="{_SERVICE}"}} '
+                    f"{oldest_age_seconds}"
+                ),
+            ]
+        )
 
         return PlainTextResponse(
             content="\n".join(lines) + "\n",

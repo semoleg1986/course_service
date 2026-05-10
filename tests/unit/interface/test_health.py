@@ -29,3 +29,8 @@ def test_metrics_endpoint_exposes_prometheus_metrics() -> None:
     assert "http_requests_total" in response.text
     assert "http_request_duration_seconds" in response.text
     assert "http_errors_total" in response.text
+    assert 'outbox_pending_total{service="course_service"} 0' in response.text
+    assert (
+        'outbox_oldest_pending_age_seconds{service="course_service"} 0.0'
+        in response.text
+    )

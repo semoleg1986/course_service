@@ -64,3 +64,9 @@ class OutboxEventRepository(Protocol):
 
     def list_pending(self, *, limit: int = 100) -> list[OutboxEventRecord]:
         """Return pending events ordered by creation time."""
+
+    def count_pending(self) -> int:
+        """Return count of pending outbox events."""
+
+    def oldest_pending_created_at(self) -> datetime | None:
+        """Return created_at of the oldest pending event."""
