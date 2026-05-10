@@ -11,7 +11,9 @@ from src.application.learning.commands.dto import CompleteLessonCommand
 from src.application.learning.progress_summary import evaluate_course_progress_summary
 from src.application.learning.queries.dto import GetStudentCourseProgressQuery
 from src.application.ports.access_read_model import AccessReadModel
+from src.application.ports.bonus_wallet import BonusWalletPort
 from src.application.ports.clock import Clock
+from src.application.ports.student_parent_directory import StudentParentDirectory
 from src.domain.content.course.entity import Course, Lesson, Module
 from src.domain.content.course.repository import CourseRepository
 from src.domain.errors import AccessDeniedError, InvariantViolationError, NotFoundError
@@ -29,11 +31,19 @@ class CompleteLessonHandler:
         read_model: AccessReadModel,
         clock: Clock,
         check_access_handler,
+        student_parent_directory: StudentParentDirectory,
+        bonus_wallet: BonusWalletPort,
+        bonus_enabled: bool,
+        course_completion_bonus_points: int,
     ) -> None:
         self._course_repository = course_repository
         self._read_model = read_model
         self._clock = clock
         self._check_access_handler = check_access_handler
+        self._student_parent_directory = student_parent_directory
+        self._bonus_wallet = bonus_wallet
+        self._bonus_enabled = bonus_enabled
+        self._course_completion_bonus_points = course_completion_bonus_points
 
     def __call__(self, command: CompleteLessonCommand) -> StudentLessonCompletionResult:
         role_set = {
@@ -70,6 +80,10 @@ class CompleteLessonHandler:
             raise AccessDeniedError("Нет активного доступа к курсу.")
 
         now = self._clock.now()
+        previous_summary = self._read_model.get_course_progress_summary(
+            course_id=command.course_id,
+            student_id=command.actor_id,
+        )
         existing = self._read_model.get_lesson_progress(
             course_id=command.course_id,
             student_id=command.actor_id,
@@ -127,6 +141,16 @@ class CompleteLessonHandler:
             read_model=self._read_model,
             evaluated_at=now,
         )
+        if self._should_accrue_course_completion_bonus(
+            previous_status=(
+                previous_summary[0] if previous_summary is not None else None
+            ),
+            new_status=summary.status.value,
+        ):
+            self._accrue_course_completion_bonus(
+                course_id=command.course_id,
+                student_id=command.actor_id,
+            )
         self._read_model.store_course_progress_summary(
             course_id=command.course_id,
             student_id=command.actor_id,
@@ -148,6 +172,30 @@ class CompleteLessonHandler:
             total_lessons=summary.total_lessons,
             completed_at=summary.completed_at,
         )
+
+    def _should_accrue_course_completion_bonus(
+        self, *, previous_status: str | None, new_status: str
+    ) -> bool:
+        return (
+            self._bonus_enabled
+            and self._course_completion_bonus_points > 0
+            and previous_status != "completed"
+            and new_status == "completed"
+        )
+
+    def _accrue_course_completion_bonus(
+        self, *, course_id: str, student_id: str
+    ) -> None:
+        reference_id = f"course-completed:{course_id}:{student_id}"
+        parent_ids = self._student_parent_directory.list_parent_ids(student_id)
+        for parent_id in sorted({item.strip() for item in parent_ids if item.strip()}):
+            self._bonus_wallet.accrue(
+                parent_id=parent_id,
+                amount=self._course_completion_bonus_points,
+                reason_code="course_completed_reward",
+                reference_id=reference_id,
+                idempotency_key=f"{reference_id}:{parent_id}",
+            )
 
     @staticmethod
     def _find_lesson_for_completion(

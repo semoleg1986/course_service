@@ -266,13 +266,13 @@ def test_student_complete_lesson_happy_path_and_idempotency() -> None:
     metrics = client.get("/metrics")
     assert metrics.status_code == 200
     assert (
-        'student_lesson_completion_requests_total{course_status="in_progress",result="success"} 2'
-        in metrics.text
-    )
+        'student_lesson_completion_requests_total{course_status="in_progress",'
+        'result="success"} 2'
+    ) in metrics.text
     assert (
-        'student_course_progress_requests_total{result="success",status="in_progress"} 1'
-        in metrics.text
-    )
+        'student_course_progress_requests_total{result="success",'
+        'status="in_progress"} 1'
+    ) in metrics.text
 
 
 def test_student_complete_lesson_requires_active_access() -> None:
@@ -339,9 +339,9 @@ def test_student_get_progress_returns_not_started_when_empty() -> None:
     metrics = client.get("/metrics")
     assert metrics.status_code == 200
     assert (
-        'student_course_progress_requests_total{result="success",status="not_started"} 1'
-        in metrics.text
-    )
+        'student_course_progress_requests_total{result="success",'
+        'status="not_started"} 1'
+    ) in metrics.text
 
 
 def test_student_get_progress_requires_active_access() -> None:
@@ -356,7 +356,9 @@ def test_student_get_progress_requires_active_access() -> None:
     assert 'student_course_progress_requests_total{result="denied"} 1' in metrics.text
 
 
-def test_student_complete_lesson_records_course_completion_metric() -> None:
+def test_student_complete_lesson_records_course_completion_metric(monkeypatch) -> None:
+    monkeypatch.setenv("COURSE_BONUS_ENABLED", "1")
+    monkeypatch.setenv("COURSE_BONUS_COURSE_COMPLETION_POINTS", "25")
     client = _client_with_actor("student-1", ["student"])
     course_id = _prepare_course_with_published_lessons("student-course-8")
 
@@ -370,10 +372,21 @@ def test_student_complete_lesson_records_course_completion_metric() -> None:
     metrics = client.get("/metrics")
     assert metrics.status_code == 200
     assert (
-        'student_lesson_completion_requests_total{course_status="completed",result="success"} 1'
-        in metrics.text
-    )
+        'student_lesson_completion_requests_total{course_status="completed",'
+        'result="success"} 1'
+    ) in metrics.text
     assert 'course_completions_total{source="student_complete"} 1' in metrics.text
+
+    runtime = get_runtime()
+    accruals = runtime.bonus_wallet.accruals
+    assert len(accruals) == 1
+    assert accruals[0].parent_id == "parent-1"
+    assert accruals[0].amount == 25
+    assert accruals[0].reason_code == "course_completed_reward"
+
+    repeated = client.post(f"/v1/student/courses/{course_id}/lessons/lesson-2/complete")
+    assert repeated.status_code == 200, repeated.text
+    assert len(runtime.bonus_wallet.accruals) == 1
 
 
 def test_student_complete_lesson_is_rate_limited(monkeypatch) -> None:

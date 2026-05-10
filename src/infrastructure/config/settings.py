@@ -21,6 +21,11 @@ class Settings:
     users_service_base_url: str
     users_service_token: str
     users_service_timeout_seconds: float
+    bonus_enabled: bool
+    bonus_course_completion_points: int
+    bonus_service_base_url: str
+    bonus_service_token: str
+    bonus_service_timeout_seconds: float
     student_complete_rate_limit_max: int
     student_complete_rate_limit_window_seconds: int
     student_progress_rate_limit_max: int
@@ -60,6 +65,19 @@ class Settings:
             ),
             users_service_timeout_seconds=float(
                 os.getenv("COURSE_USERS_SERVICE_TIMEOUT_SECONDS", "2")
+            ),
+            bonus_enabled=os.getenv("COURSE_BONUS_ENABLED", "0") == "1",
+            bonus_course_completion_points=int(
+                os.getenv("COURSE_BONUS_COURSE_COMPLETION_POINTS", "25")
+            ),
+            bonus_service_base_url=os.getenv(
+                "COURSE_BONUS_SERVICE_BASE_URL", "http://localhost:8006"
+            ),
+            bonus_service_token=os.getenv(
+                "COURSE_BONUS_SERVICE_TOKEN", "dev-service-token"
+            ),
+            bonus_service_timeout_seconds=float(
+                os.getenv("COURSE_BONUS_SERVICE_TIMEOUT_SECONDS", "2")
             ),
             student_complete_rate_limit_max=int(
                 os.getenv("COURSE_RATE_LIMIT_STUDENT_COMPLETE_MAX", "20")

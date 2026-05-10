@@ -56,6 +56,8 @@ from src.application.learning.queries.dto import GetStudentCourseProgressQuery
 from src.application.ports.access_read_model import AccessReadModel
 from src.application.ports.access_token_verifier import AccessTokenVerifier
 from src.infrastructure.auth.jwks_access_token_verifier import JwksAccessTokenVerifier
+from src.infrastructure.bonus.http_bonus_wallet import HttpBonusWalletPort
+from src.infrastructure.bonus.inmemory_bonus_wallet import InMemoryBonusWalletPort
 from src.infrastructure.clock.system_clock import SystemClock
 from src.infrastructure.config.settings import Settings
 from src.infrastructure.db.inmemory.access_read_model import InMemoryAccessReadModel
@@ -67,9 +69,15 @@ from src.infrastructure.db.inmemory.uow import InMemoryUnitOfWork
 from src.infrastructure.users.inmemory_parent_student_relation_checker import (
     InMemoryParentStudentRelationChecker,
 )
+from src.infrastructure.users.inmemory_student_parent_directory import (
+    InMemoryStudentParentDirectory,
+)
 from src.infrastructure.users.inmemory_teacher_directory import InMemoryTeacherDirectory
 from src.infrastructure.users.users_service_parent_student_relation_checker import (
     UsersServiceParentStudentRelationChecker,
+)
+from src.infrastructure.users.users_service_student_parent_directory import (
+    UsersServiceStudentParentDirectory,
 )
 from src.infrastructure.users.users_service_teacher_directory import (
     UsersServiceTeacherDirectory,
@@ -85,6 +93,7 @@ class RuntimeContainer:
     access_token_verifier: AccessTokenVerifier
     access_read_model: AccessReadModel
     audit_repo: object
+    bonus_wallet: object
 
 
 def build_runtime() -> RuntimeContainer:
@@ -105,13 +114,15 @@ def build_runtime() -> RuntimeContainer:
         audit_repo = InMemoryAuditEvidenceRepository()
         teacher_directory = InMemoryTeacherDirectory()
         relation_checker = InMemoryParentStudentRelationChecker()
+        student_parent_directory = InMemoryStudentParentDirectory()
+        bonus_wallet = InMemoryBonusWalletPort()
     else:
+        from src.infrastructure.db.sqlalchemy import (
+            audit_evidence_repository_sqlalchemy as audit_repo_sqlalchemy,
+        )
         from src.infrastructure.db.sqlalchemy import models as _models  # noqa: F401
         from src.infrastructure.db.sqlalchemy.access_read_model_sqlalchemy import (
             SqlalchemyAccessReadModel,
-        )
-        from src.infrastructure.db.sqlalchemy.audit_evidence_repository_sqlalchemy import (
-            SqlalchemyAuditEvidenceRepository,
         )
         from src.infrastructure.db.sqlalchemy.base import Base
         from src.infrastructure.db.sqlalchemy.course_repository_sqlalchemy import (
@@ -129,7 +140,9 @@ def build_runtime() -> RuntimeContainer:
         session_factory = build_session_factory(engine)
         read_model = SqlalchemyAccessReadModel(session_factory)
         course_repository = SqlalchemyCourseRepository(session_factory)
-        audit_repo = SqlalchemyAuditEvidenceRepository(session_factory)
+        audit_repo = audit_repo_sqlalchemy.SqlalchemyAuditEvidenceRepository(
+            session_factory
+        )
         teacher_directory = UsersServiceTeacherDirectory(
             base_url=settings.users_service_base_url,
             service_token=settings.users_service_token,
@@ -140,13 +153,32 @@ def build_runtime() -> RuntimeContainer:
             service_token=settings.users_service_token,
             timeout_seconds=settings.users_service_timeout_seconds,
         )
-        uow_factory = lambda: SqlalchemyUnitOfWork(session_factory)
-    if settings.use_inmemory:
-        uow_factory = lambda: InMemoryUnitOfWork(
-            course_repository=course_repository,
-            access_read_model=read_model,
-            audit_evidence=audit_repo,
+        student_parent_directory = UsersServiceStudentParentDirectory(
+            base_url=settings.users_service_base_url,
+            service_token=settings.users_service_token,
+            timeout_seconds=settings.users_service_timeout_seconds,
         )
+        bonus_wallet = HttpBonusWalletPort(
+            base_url=settings.bonus_service_base_url,
+            service_token=settings.bonus_service_token,
+            timeout_seconds=settings.bonus_service_timeout_seconds,
+        )
+
+        def build_sql_uow():
+            return SqlalchemyUnitOfWork(session_factory)
+
+        uow_factory = build_sql_uow
+
+    if settings.use_inmemory:
+
+        def build_inmemory_uow():
+            return InMemoryUnitOfWork(
+                course_repository=course_repository,
+                access_read_model=read_model,
+                audit_evidence=audit_repo,
+            )
+
+        uow_factory = build_inmemory_uow
 
     # Demo-данные для локальной проверки контракта.
     read_model.seed_course_owner(
@@ -226,6 +258,10 @@ def build_runtime() -> RuntimeContainer:
             read_model=read_model,
             clock=clock,
             check_access_handler=check_access_handler,
+            student_parent_directory=student_parent_directory,
+            bonus_wallet=bonus_wallet,
+            bonus_enabled=settings.bonus_enabled,
+            course_completion_bonus_points=settings.bonus_course_completion_points,
         ),
     )
     facade.register_query_handler(
@@ -261,4 +297,5 @@ def build_runtime() -> RuntimeContainer:
         access_token_verifier=access_token_verifier,
         access_read_model=read_model,
         audit_repo=audit_repo,
+        bonus_wallet=bonus_wallet,
     )
