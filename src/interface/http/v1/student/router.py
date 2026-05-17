@@ -46,6 +46,7 @@ def complete_lesson(
             "student_lesson_completion_requests_total",
             "Total student lesson completion requests.",
             result="not_found",
+            course_status="unknown",
         )
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except AccessDeniedError as exc:
@@ -53,6 +54,7 @@ def complete_lesson(
             "student_lesson_completion_requests_total",
             "Total student lesson completion requests.",
             result="denied",
+            course_status="unknown",
         )
         raise HTTPException(status_code=403, detail=str(exc)) from exc
     except InvariantViolationError as exc:
@@ -60,6 +62,7 @@ def complete_lesson(
             "student_lesson_completion_requests_total",
             "Total student lesson completion requests.",
             result="conflict",
+            course_status="unknown",
         )
         raise HTTPException(status_code=409, detail=str(exc)) from exc
 

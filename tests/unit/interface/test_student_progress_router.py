@@ -284,7 +284,10 @@ def test_student_complete_lesson_requires_active_access() -> None:
 
     metrics = client.get("/metrics")
     assert metrics.status_code == 200
-    assert 'student_lesson_completion_requests_total{result="denied"} 1' in metrics.text
+    assert (
+        'student_lesson_completion_requests_total{course_status="unknown",result="denied"} 1'
+        in metrics.text
+    )
 
 
 def test_student_complete_lesson_rejects_non_student() -> None:
@@ -305,7 +308,8 @@ def test_student_complete_lesson_returns_404_for_unknown_lesson() -> None:
     metrics = client.get("/metrics")
     assert metrics.status_code == 200
     assert (
-        'student_lesson_completion_requests_total{result="not_found"} 1' in metrics.text
+        'student_lesson_completion_requests_total{course_status="unknown",result="not_found"} 1'
+        in metrics.text
     )
 
 
@@ -320,7 +324,8 @@ def test_student_complete_lesson_returns_409_for_unavailable_lesson() -> None:
     metrics = client.get("/metrics")
     assert metrics.status_code == 200
     assert (
-        'student_lesson_completion_requests_total{result="conflict"} 1' in metrics.text
+        'student_lesson_completion_requests_total{course_status="unknown",result="conflict"} 1'
+        in metrics.text
     )
 
 
