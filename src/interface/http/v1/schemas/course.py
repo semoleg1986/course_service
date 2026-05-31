@@ -328,3 +328,50 @@ class StudentCourseProgressResponse(BaseModel):
     total_lessons: int = Field(ge=0)
     status: str
     completed_at: datetime | None
+
+
+class StudentCourseLearningProgressResponse(BaseModel):
+    """Progress summary внутри student learning response."""
+
+    progress_percent: float = Field(ge=0, le=100)
+    completed_lessons: int = Field(ge=0)
+    total_lessons: int = Field(ge=0)
+    status: str
+    completed_at: datetime | None
+
+
+class StudentCourseLearningLessonResponse(BaseModel):
+    """Student-facing lesson внутри learning response."""
+
+    lesson_id: str
+    title: str
+    description: str | None
+    content_type: str
+    content_ref: str | None
+    duration_minutes: int | None = Field(default=None, ge=1)
+    is_preview: bool
+    progress_status: str
+    is_completed: bool
+
+
+class StudentCourseLearningModuleResponse(BaseModel):
+    """Student-facing module внутри learning response."""
+
+    module_id: str
+    title: str
+    description: str | None
+    is_required: bool
+    lessons_count: int = Field(ge=0)
+    lessons: list[StudentCourseLearningLessonResponse]
+
+
+class StudentCourseLearningResponse(BaseModel):
+    """Полный student-facing learning read model курса."""
+
+    course_id: str
+    title: str
+    description: str | None
+    level: str
+    progress: StudentCourseLearningProgressResponse
+    next_lesson_id: str | None
+    modules: list[StudentCourseLearningModuleResponse]

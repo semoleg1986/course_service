@@ -285,8 +285,8 @@ def test_student_complete_lesson_requires_active_access() -> None:
     metrics = client.get("/metrics")
     assert metrics.status_code == 200
     assert (
-        'student_lesson_completion_requests_total{course_status="unknown",result="denied"} 1'
-        in metrics.text
+        'student_lesson_completion_requests_total{course_status="unknown",'
+        'result="denied"} 1' in metrics.text
     )
 
 
@@ -308,8 +308,8 @@ def test_student_complete_lesson_returns_404_for_unknown_lesson() -> None:
     metrics = client.get("/metrics")
     assert metrics.status_code == 200
     assert (
-        'student_lesson_completion_requests_total{course_status="unknown",result="not_found"} 1'
-        in metrics.text
+        'student_lesson_completion_requests_total{course_status="unknown",'
+        'result="not_found"} 1' in metrics.text
     )
 
 
@@ -324,8 +324,8 @@ def test_student_complete_lesson_returns_409_for_unavailable_lesson() -> None:
     metrics = client.get("/metrics")
     assert metrics.status_code == 200
     assert (
-        'student_lesson_completion_requests_total{course_status="unknown",result="conflict"} 1'
-        in metrics.text
+        'student_lesson_completion_requests_total{course_status="unknown",'
+        'result="conflict"} 1' in metrics.text
     )
 
 
@@ -347,6 +347,85 @@ def test_student_get_progress_returns_not_started_when_empty() -> None:
         'student_course_progress_requests_total{result="success",'
         'status="not_started"} 1'
     ) in metrics.text
+
+
+def test_student_get_learning_returns_modules_lessons_progress_and_next_lesson() -> (
+    None
+):
+    client = _client_with_actor("student-1", ["student"])
+    course_id = _prepare_course_with_published_lessons("student-course-learning-1")
+
+    completed = client.post(
+        f"/v1/student/courses/{course_id}/lessons/lesson-1/complete"
+    )
+    assert completed.status_code == 200, completed.text
+
+    response = client.get(f"/v1/student/courses/{course_id}/learning")
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["course_id"] == course_id
+    assert body["title"] == "Course student-course-learning-1"
+    assert body["level"] == "beginner"
+    assert body["progress"] == {
+        "progress_percent": 50.0,
+        "completed_lessons": 1,
+        "total_lessons": 2,
+        "status": "in_progress",
+        "completed_at": None,
+    }
+    assert body["next_lesson_id"] == "lesson-2"
+    assert body["modules"] == [
+        {
+            "module_id": "module-1",
+            "title": "Module 1",
+            "description": None,
+            "is_required": True,
+            "lessons_count": 2,
+            "lessons": [
+                {
+                    "lesson_id": "lesson-1",
+                    "title": "lesson-1",
+                    "description": None,
+                    "content_type": "video",
+                    "content_ref": None,
+                    "duration_minutes": 10,
+                    "is_preview": False,
+                    "progress_status": "completed",
+                    "is_completed": True,
+                },
+                {
+                    "lesson_id": "lesson-2",
+                    "title": "lesson-2",
+                    "description": None,
+                    "content_type": "video",
+                    "content_ref": None,
+                    "duration_minutes": 10,
+                    "is_preview": False,
+                    "progress_status": "not_started",
+                    "is_completed": False,
+                },
+            ],
+        }
+    ]
+
+    metrics = client.get("/metrics")
+    assert metrics.status_code == 200
+    assert (
+        'student_course_learning_requests_total{result="success",'
+        'status="in_progress"} 1'
+    ) in metrics.text
+
+
+def test_student_get_learning_requires_active_access() -> None:
+    client = _client_with_actor("student-2", ["student"])
+    course_id = _prepare_course_with_published_lessons("student-course-learning-2")
+
+    response = client.get(f"/v1/student/courses/{course_id}/learning")
+    assert response.status_code == 403, response.text
+
+    metrics = client.get("/metrics")
+    assert metrics.status_code == 200
+    assert 'student_course_learning_requests_total{result="denied"} 1' in metrics.text
 
 
 def test_student_get_progress_requires_active_access() -> None:
@@ -485,6 +564,9 @@ def test_student_routes_require_bearer_token() -> None:
 
     progress_response = client.get("/v1/student/courses/course-1/progress")
     assert progress_response.status_code == 401, progress_response.text
+
+    learning_response = client.get("/v1/student/courses/course-1/learning")
+    assert learning_response.status_code == 401, learning_response.text
 
     complete_response = client.post(
         "/v1/student/courses/course-1/lessons/lesson-1/complete"

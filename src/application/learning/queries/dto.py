@@ -10,3 +10,12 @@ class GetStudentCourseProgressQuery:
     course_id: str
     actor_id: str
     actor_roles: list[str]
+
+
+@dataclass(frozen=True, slots=True)
+class GetStudentCourseLearningQuery:
+    """Возвращает student-facing learning read model курса."""
+
+    course_id: str
+    actor_id: str
+    actor_roles: list[str]

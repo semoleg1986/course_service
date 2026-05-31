@@ -105,6 +105,57 @@ class StudentCourseProgressResult:
 
 
 @dataclass(frozen=True, slots=True)
+class StudentCourseLearningProgressResult:
+    """Progress summary внутри student learning read model."""
+
+    progress_percent: float
+    completed_lessons: int
+    total_lessons: int
+    status: str
+    completed_at: datetime | None
+
+
+@dataclass(frozen=True, slots=True)
+class StudentCourseLearningLessonResult:
+    """Student-facing lesson item внутри learning read model."""
+
+    lesson_id: str
+    title: str
+    description: str | None
+    content_type: str
+    content_ref: str | None
+    duration_minutes: int | None
+    is_preview: bool
+    progress_status: str
+    is_completed: bool
+
+
+@dataclass(frozen=True, slots=True)
+class StudentCourseLearningModuleResult:
+    """Student-facing module item внутри learning read model."""
+
+    module_id: str
+    title: str
+    description: str | None
+    is_required: bool
+    lessons_count: int
+    lessons: list[StudentCourseLearningLessonResult]
+
+
+@dataclass(frozen=True, slots=True)
+class StudentCourseLearningResult:
+    """Полный student-facing read model курса."""
+
+    course_id: str
+    title: str
+    description: str | None
+    level: str
+    progress: StudentCourseLearningProgressResult
+    next_lesson_id: str | None
+    modules: list[StudentCourseLearningModuleResult]
+
+
+@dataclass(frozen=True, slots=True)
 class CompletedCourseItemResult:
     """Завершенный курс ученика для parent-view."""
 

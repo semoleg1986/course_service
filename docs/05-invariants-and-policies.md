@@ -43,6 +43,12 @@
   - повтор не должен создавать дубликаты прогресса и оставляет completed-state неизменным
 - `GET /v1/student/courses/{course_id}/progress`
   - read-only endpoint; безопасен для повторов и polling
+- `GET /v1/student/courses/{course_id}/learning`
+  - read-only endpoint; безопасен для повторов и polling
+  - возвращает только published modules/lessons
+  - требует роль `student` и активный approved access grant
+  - отдает normalized read model: course summary, progress, lessons completion
+    state и `next_lesson_id`
 - `GET /v1/parent/students/{student_id}/courses/progress`
   - read-only endpoint; безопасен для повторов и polling
 - `GET /v1/parent/students/{student_id}/courses/completed`

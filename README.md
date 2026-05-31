@@ -8,6 +8,7 @@ Course domain service for content structure and progress.
 - courses, modules, lessons
 - publication state
 - student lesson completion and progress views
+- student learning read model with modules, lessons, progress and next lesson
 - course access checks against granted entitlements
 - outbox events for downstream integrations
 
