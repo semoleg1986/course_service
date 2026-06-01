@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-from sqlalchemy import delete, or_, select
+from sqlalchemy import delete, func, or_, select
 from sqlalchemy.orm import Session, sessionmaker
 
+from src.application.ports.course_admin_read_model import CourseAdminListRecord
 from src.domain.content.course.entity import Course, Lesson, Module
 from src.domain.content.course.value_objects import (
     CourseAudience,
@@ -59,7 +60,7 @@ class SqlalchemyCourseRepository:
             models = db.execute(stmt).scalars().all()
             return [self._to_entity_with_children(model) for model in models]
 
-    def list_admin(
+    def list_admin_courses(
         self,
         *,
         publish_state: str | None = None,
@@ -67,31 +68,97 @@ class SqlalchemyCourseRepository:
         search: str | None = None,
         limit: int = 100,
         offset: int = 0,
-    ) -> list[Course]:
+    ) -> tuple[list[CourseAdminListRecord], int]:
         with managed_session(self._session_factory) as db:
-            stmt = select(CourseCatalogModel)
+            filters = []
             if publish_state is not None:
-                stmt = stmt.where(CourseCatalogModel.publish_state == publish_state)
+                filters.append(CourseCatalogModel.publish_state == publish_state)
             if teacher_id is not None:
-                stmt = stmt.where(CourseCatalogModel.teacher_id == teacher_id)
+                filters.append(CourseCatalogModel.teacher_id == teacher_id)
             if search:
                 pattern = f"%{search.strip()}%"
-                stmt = stmt.where(
+                filters.append(
                     or_(
                         CourseCatalogModel.title.ilike(pattern),
                         CourseCatalogModel.slug.ilike(pattern),
                     )
                 )
+
+            total_stmt = select(func.count()).select_from(CourseCatalogModel)
+            if filters:
+                total_stmt = total_stmt.where(*filters)
+            total = int(db.execute(total_stmt).scalar_one())
+
+            modules_count = (
+                select(func.count(CourseModuleModel.module_id))
+                .where(CourseModuleModel.course_id == CourseCatalogModel.course_id)
+                .correlate(CourseCatalogModel)
+                .scalar_subquery()
+            )
+            lessons_total = (
+                select(func.count(CourseLessonModel.lesson_id))
+                .join(
+                    CourseModuleModel,
+                    CourseLessonModel.module_id == CourseModuleModel.module_id,
+                )
+                .where(CourseModuleModel.course_id == CourseCatalogModel.course_id)
+                .correlate(CourseCatalogModel)
+                .scalar_subquery()
+            )
             stmt = (
-                stmt.order_by(
+                select(
+                    CourseCatalogModel.course_id,
+                    CourseCatalogModel.title,
+                    CourseCatalogModel.teacher_id,
+                    CourseCatalogModel.teacher_display_name,
+                    CourseCatalogModel.slug,
+                    CourseCatalogModel.publish_state,
+                    CourseCatalogModel.price,
+                    CourseCatalogModel.currency,
+                    modules_count.label("modules_count"),
+                    lessons_total.label("lessons_total"),
+                    CourseCatalogModel.published_at,
+                    CourseCatalogModel.archived_at,
+                    CourseCatalogModel.created_at,
+                    CourseCatalogModel.created_by,
+                    CourseCatalogModel.updated_at,
+                    CourseCatalogModel.updated_by,
+                    CourseCatalogModel.version,
+                )
+                .where(*filters)
+                .order_by(
                     CourseCatalogModel.updated_at.desc(),
                     CourseCatalogModel.created_at.desc(),
                 )
                 .offset(offset)
                 .limit(limit)
             )
-            models = db.execute(stmt).scalars().all()
-            return [self._to_entity_with_children(model) for model in models]
+            rows = db.execute(stmt).all()
+            return (
+                [
+                    CourseAdminListRecord(
+                        course_id=row.course_id,
+                        title=row.title,
+                        teacher_id=row.teacher_id,
+                        teacher_display_name=row.teacher_display_name,
+                        slug=row.slug,
+                        publish_state=row.publish_state,
+                        price=float(row.price),
+                        currency=row.currency,
+                        modules_count=int(row.modules_count),
+                        lessons_total=int(row.lessons_total),
+                        published_at=row.published_at,
+                        archived_at=row.archived_at,
+                        created_at=row.created_at,
+                        created_by=row.created_by,
+                        updated_at=row.updated_at,
+                        updated_by=row.updated_by,
+                        version=row.version,
+                    )
+                    for row in rows
+                ],
+                total,
+            )
 
     def save(self, course: Course) -> None:
         with managed_transaction(self._session_factory) as db:

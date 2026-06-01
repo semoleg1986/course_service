@@ -8,12 +8,12 @@ from uuid import uuid4
 
 from src.application.common.dto import (
     AdminCourseListItemResult,
+    AdminCourseListResult,
     CourseAuthoringResult,
     CourseResult,
     PublicCourseResult,
 )
 from src.application.common.mappers import (
-    to_admin_course_list_item_result,
     to_course_authoring_result,
     to_course_result,
     to_public_course_card_result,
@@ -38,6 +38,7 @@ from src.application.courses.queries.dto import (
 )
 from src.application.ports.audit_evidence import AuditEvidenceRecord
 from src.application.ports.clock import Clock
+from src.application.ports.course_admin_read_model import CourseAdminReadModel
 from src.application.ports.teacher_directory import TeacherDirectory
 from src.application.ports.unit_of_work import UnitOfWork
 from src.domain.content.course.entity import Course, Lesson, Module
@@ -385,10 +386,10 @@ class GetCourseAuthoringHandler:
 class ListAdminCoursesHandler:
     """Возвращает admin/studio список курсов."""
 
-    def __init__(self, *, repository: CourseRepository) -> None:
-        self._repository = repository
+    def __init__(self, *, read_model: CourseAdminReadModel) -> None:
+        self._read_model = read_model
 
-    def __call__(self, query: ListAdminCoursesQuery) -> list[AdminCourseListItemResult]:
+    def __call__(self, query: ListAdminCoursesQuery) -> AdminCourseListResult:
         _ensure_admin_or_teacher(query.actor_roles)
         role_set = {role.strip().lower() for role in query.actor_roles if role.strip()}
         publish_state = query.publish_state.strip() if query.publish_state else None
@@ -409,14 +410,40 @@ class ListAdminCoursesHandler:
                 )
             effective_teacher_id = query.actor_id
 
-        courses = self._repository.list_admin(
+        records, total = self._read_model.list_admin_courses(
             publish_state=publish_state,
             teacher_id=effective_teacher_id,
             search=query.search,
             limit=query.limit,
             offset=query.offset,
         )
-        return [to_admin_course_list_item_result(course) for course in courses]
+        return AdminCourseListResult(
+            items=[
+                AdminCourseListItemResult(
+                    course_id=record.course_id,
+                    title=record.title,
+                    teacher_id=record.teacher_id,
+                    teacher_display_name=record.teacher_display_name,
+                    slug=record.slug,
+                    publish_state=record.publish_state,
+                    price=record.price,
+                    currency=record.currency,
+                    modules_count=record.modules_count,
+                    lessons_total=record.lessons_total,
+                    published_at=record.published_at,
+                    archived_at=record.archived_at,
+                    created_at=record.created_at,
+                    created_by=record.created_by,
+                    updated_at=record.updated_at,
+                    updated_by=record.updated_by,
+                    version=record.version,
+                )
+                for record in records
+            ],
+            total=total,
+            limit=query.limit,
+            offset=query.offset,
+        )
 
 
 class GetPublishedCourseBySlugHandler:

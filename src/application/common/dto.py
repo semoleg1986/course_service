@@ -128,8 +128,20 @@ class AdminCourseListItemResult:
     published_at: datetime | None
     archived_at: datetime | None
     created_at: datetime
+    created_by: str
     updated_at: datetime
+    updated_by: str
     version: int
+
+
+@dataclass(frozen=True, slots=True)
+class AdminCourseListResult:
+    """Paginated admin/studio список курсов."""
+
+    items: list[AdminCourseListItemResult]
+    total: int
+    limit: int
+    offset: int
 
 
 @dataclass(frozen=True, slots=True)

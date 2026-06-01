@@ -285,7 +285,9 @@ class AdminCourseListItemResponse(BaseModel):
     published_at: datetime | None
     archived_at: datetime | None
     created_at: datetime
+    created_by: str
     updated_at: datetime
+    updated_by: str
     version: int = Field(ge=1)
 
 
@@ -293,6 +295,7 @@ class AdminCourseListResponse(BaseModel):
     """Admin/studio список курсов."""
 
     items: list[AdminCourseListItemResponse]
+    total: int = Field(ge=0)
     limit: int = Field(ge=1)
     offset: int = Field(ge=0)
 

@@ -55,8 +55,10 @@ make format
 `course_service` exposes backend-owned read models for `studio_app`, so the
 frontend does not assemble course editor state from unrelated responses.
 
-- `GET /v1/admin/courses?publish_state=&teacher_id=&q=&limit=&offset=` — list
-  draft/published/archived courses for admin/studio.
+- `GET /v1/admin/courses?publish_state=&teacher_id=&q=&limit=&offset=` — paginated
+  list of draft/published/archived courses for admin/studio. Response includes
+  `items`, `total`, `limit`, `offset`; list items include authoring audit fields
+  `created_by` and `updated_by`.
 - `GET /v1/admin/courses/{course_id}/authoring` — full editor read model:
   course summary, modules, lessons, statuses, positions and content refs.
 - `POST /v1/admin/courses` / `PATCH /v1/admin/courses/{course_id}` — create and

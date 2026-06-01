@@ -231,10 +231,13 @@ def test_admin_courses_list_filters_by_status_teacher_and_search() -> None:
     payload = response.json()
     assert payload["limit"] == 50
     assert payload["offset"] == 0
+    assert payload["total"] == 1
     assert [item["course_id"] for item in payload["items"]] == [
         first.json()["course_id"]
     ]
     assert payload["items"][0]["publish_state"] == "draft"
+    assert payload["items"][0]["created_by"] == "admin-1"
+    assert payload["items"][0]["updated_by"] == "admin-1"
 
 
 def test_teacher_courses_list_is_scoped_to_owner() -> None:
@@ -273,6 +276,7 @@ def test_teacher_courses_list_is_scoped_to_owner() -> None:
     actor_state["roles"] = ["teacher"]
     response = client.get("/v1/admin/courses")
     assert response.status_code == 200, response.text
+    assert response.json()["total"] == 1
     assert [item["course_id"] for item in response.json()["items"]] == [
         first.json()["course_id"]
     ]

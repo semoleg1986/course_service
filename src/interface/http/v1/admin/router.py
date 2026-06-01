@@ -189,9 +189,10 @@ def list_courses(
     except InvariantViolationError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return AdminCourseListResponse(
-        items=[AdminCourseListItemResponse(**asdict(item)) for item in result],
-        limit=limit,
-        offset=offset,
+        items=[AdminCourseListItemResponse(**asdict(item)) for item in result.items],
+        total=result.total,
+        limit=result.limit,
+        offset=result.offset,
     )
 
 

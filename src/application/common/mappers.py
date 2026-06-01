@@ -123,7 +123,9 @@ def to_admin_course_list_item_result(course: Course) -> AdminCourseListItemResul
         published_at=course.published_at,
         archived_at=course.archived_at,
         created_at=course.meta.created_at,
+        created_by=course.meta.created_by,
         updated_at=course.meta.updated_at,
+        updated_by=course.meta.updated_by,
         version=course.meta.version,
     )
 

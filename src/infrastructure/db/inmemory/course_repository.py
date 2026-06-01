@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from src.application.ports.course_admin_read_model import CourseAdminListRecord
 from src.domain.content.course.entity import Course
 from src.domain.shared.statuses import PublishState
 
@@ -37,7 +38,7 @@ class InMemoryCourseRepository:
         )
         return items[offset : offset + limit]
 
-    def list_admin(
+    def list_admin_courses(
         self,
         *,
         publish_state: str | None = None,
@@ -45,7 +46,7 @@ class InMemoryCourseRepository:
         search: str | None = None,
         limit: int = 100,
         offset: int = 0,
-    ) -> list[Course]:
+    ) -> tuple[list[CourseAdminListRecord], int]:
         items = list(self._by_id.values())
         if publish_state is not None:
             items = [
@@ -61,7 +62,32 @@ class InMemoryCourseRepository:
                 if needle in item.title.lower() or needle in item.slug.value.lower()
             ]
         items.sort(key=lambda item: item.meta.updated_at, reverse=True)
-        return items[offset : offset + limit]
+        total = len(items)
+        return (
+            [
+                CourseAdminListRecord(
+                    course_id=item.course_id,
+                    title=item.title,
+                    teacher_id=item.teacher_id,
+                    teacher_display_name=item.teacher_display_name,
+                    slug=item.slug.value,
+                    publish_state=item.publish_state.value,
+                    price=item.pricing.price,
+                    currency=item.pricing.currency,
+                    modules_count=item.modules_count,
+                    lessons_total=item.lessons_total,
+                    published_at=item.published_at,
+                    archived_at=item.archived_at,
+                    created_at=item.meta.created_at,
+                    created_by=item.meta.created_by,
+                    updated_at=item.meta.updated_at,
+                    updated_by=item.meta.updated_by,
+                    version=item.meta.version,
+                )
+                for item in items[offset : offset + limit]
+            ],
+            total,
+        )
 
     def save(self, course: Course) -> None:
         self._by_id[course.course_id] = course

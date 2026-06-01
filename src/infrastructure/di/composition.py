@@ -267,7 +267,7 @@ def build_runtime() -> RuntimeContainer:
     )
     facade.register_query_handler(
         ListAdminCoursesQuery,
-        ListAdminCoursesHandler(repository=course_repository),
+        ListAdminCoursesHandler(read_model=course_repository),
     )
     facade.register_query_handler(
         GetPublishedCourseBySlugQuery,
