@@ -27,6 +27,17 @@ from src.interface.http.wiring import get_facade
 router = APIRouter(prefix="/v1/student", tags=["student"])
 
 
+def _increment_student_course_learning_requests(
+    *, result: str, status: str = "none"
+) -> None:
+    increment_counter(
+        "student_course_learning_requests_total",
+        "Total student course learning read requests.",
+        result=result,
+        status=status,
+    )
+
+
 @router.post(
     "/courses/{course_id}/lessons/{lesson_id}/complete",
     response_model=StudentLessonCompletionResponse,
@@ -179,32 +190,17 @@ def get_course_learning(
             )
         )
     except NotFoundError as exc:
-        increment_counter(
-            "student_course_learning_requests_total",
-            "Total student course learning read requests.",
-            result="not_found",
-        )
+        _increment_student_course_learning_requests(result="not_found")
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except AccessDeniedError as exc:
-        increment_counter(
-            "student_course_learning_requests_total",
-            "Total student course learning read requests.",
-            result="denied",
-        )
+        _increment_student_course_learning_requests(result="denied")
         raise HTTPException(status_code=403, detail=str(exc)) from exc
     except InvariantViolationError as exc:
-        increment_counter(
-            "student_course_learning_requests_total",
-            "Total student course learning read requests.",
-            result="conflict",
-        )
+        _increment_student_course_learning_requests(result="conflict")
         raise HTTPException(status_code=409, detail=str(exc)) from exc
 
-    increment_counter(
-        "student_course_learning_requests_total",
-        "Total student course learning read requests.",
-        result="success",
-        status=result.progress.status,
+    _increment_student_course_learning_requests(
+        result="success", status=result.progress.status
     )
 
     return StudentCourseLearningResponse(

@@ -425,7 +425,10 @@ def test_student_get_learning_requires_active_access() -> None:
 
     metrics = client.get("/metrics")
     assert metrics.status_code == 200
-    assert 'student_course_learning_requests_total{result="denied"} 1' in metrics.text
+    assert (
+        'student_course_learning_requests_total{result="denied",status="none"} 1'
+        in metrics.text
+    )
 
 
 def test_student_get_progress_requires_active_access() -> None:
