@@ -36,8 +36,10 @@ from src.application.courses.handlers.manage_course_handlers import (
     AddModuleHandler,
     ArchiveCourseHandler,
     CreateCourseHandler,
+    GetCourseAuthoringHandler,
     GetCourseByIdHandler,
     GetPublishedCourseBySlugHandler,
+    ListAdminCoursesHandler,
     ListPublishedCoursesHandler,
     PublishCourseHandler,
     UpdateCourseHandler,
@@ -45,8 +47,10 @@ from src.application.courses.handlers.manage_course_handlers import (
     UpdateModuleHandler,
 )
 from src.application.courses.queries.dto import (
+    GetCourseAuthoringQuery,
     GetCourseByIdQuery,
     GetPublishedCourseBySlugQuery,
+    ListAdminCoursesQuery,
     ListPublishedCoursesQuery,
 )
 from src.application.facade.application_facade import ApplicationFacade
@@ -256,6 +260,14 @@ def build_runtime() -> RuntimeContainer:
     facade.register_query_handler(
         GetCourseByIdQuery,
         GetCourseByIdHandler(repository=course_repository),
+    )
+    facade.register_query_handler(
+        GetCourseAuthoringQuery,
+        GetCourseAuthoringHandler(repository=course_repository),
+    )
+    facade.register_query_handler(
+        ListAdminCoursesQuery,
+        ListAdminCoursesHandler(repository=course_repository),
     )
     facade.register_query_handler(
         GetPublishedCourseBySlugQuery,

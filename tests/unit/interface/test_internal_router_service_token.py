@@ -143,12 +143,12 @@ def test_internal_access_granted_event_is_replay_safe() -> None:
     metrics = client.get("/metrics")
     assert metrics.status_code == 200
     assert (
-        'course_access_granted_events_total{granted_status="approved",result="applied"} 1'
-        in metrics.text
+        "course_access_granted_events_total{"
+        'granted_status="approved",result="applied"} 1' in metrics.text
     )
     assert (
-        'course_access_granted_events_total{granted_status="approved",result="replay"} 1'
-        in metrics.text
+        "course_access_granted_events_total{"
+        'granted_status="approved",result="replay"} 1' in metrics.text
     )
     assert (
         'course_access_granted_applied_total{granted_status="approved"} 1'

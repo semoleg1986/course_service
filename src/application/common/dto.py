@@ -64,6 +64,75 @@ class CourseResult:
 
 
 @dataclass(frozen=True, slots=True)
+class CourseAuthoringLessonResult:
+    """Lesson item внутри studio/admin authoring read model."""
+
+    lesson_id: str
+    title: str
+    description: str | None
+    content_type: str
+    content_ref: str | None
+    duration_minutes: int | None
+    is_preview: bool
+    released_at: datetime | None
+    status: str
+    position: int
+    version: int
+    created_at: datetime
+    updated_at: datetime
+
+
+@dataclass(frozen=True, slots=True)
+class CourseAuthoringModuleResult:
+    """Module item внутри studio/admin authoring read model."""
+
+    module_id: str
+    title: str
+    description: str | None
+    is_required: bool
+    released_at: datetime | None
+    status: str
+    position: int
+    lessons_count: int
+    lessons: list[CourseAuthoringLessonResult]
+    version: int
+    created_at: datetime
+    updated_at: datetime
+
+
+@dataclass(frozen=True, slots=True)
+class CourseAuthoringResult:
+    """Полный admin/studio read model курса для редактора."""
+
+    course: CourseResult
+    modules: list[CourseAuthoringModuleResult]
+    version: int
+    created_at: datetime
+    updated_at: datetime
+
+
+@dataclass(frozen=True, slots=True)
+class AdminCourseListItemResult:
+    """Summary курса для admin/studio списка."""
+
+    course_id: str
+    title: str
+    teacher_id: str
+    teacher_display_name: str | None
+    slug: str
+    publish_state: str
+    price: float
+    currency: str
+    modules_count: int
+    lessons_total: int
+    published_at: datetime | None
+    archived_at: datetime | None
+    created_at: datetime
+    updated_at: datetime
+    version: int
+
+
+@dataclass(frozen=True, slots=True)
 class CourseProgressItemResult:
     """Прогресс ученика по курсу для parent-view."""
 

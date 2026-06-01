@@ -61,7 +61,8 @@ def test_public_course_returns_published_course_with_viewer_timezone() -> None:
     assert module_publish_response.status_code == 200, module_publish_response.text
 
     lesson_publish_response = client.patch(
-        f"/v1/admin/courses/{course_id}/modules/module-public-1/lessons/lesson-public-1",
+        f"/v1/admin/courses/{course_id}/modules/module-public-1"
+        "/lessons/lesson-public-1",
         json={"status": "published"},
     )
     assert lesson_publish_response.status_code == 200, lesson_publish_response.text
@@ -129,7 +130,8 @@ def test_public_course_catalog_returns_only_published_courses() -> None:
     assert module_publish_response.status_code == 200, module_publish_response.text
 
     lesson_publish_response = client.patch(
-        f"/v1/admin/courses/{published_course_id}/modules/module-public-list-1/lessons/lesson-public-list-1",
+        f"/v1/admin/courses/{published_course_id}/modules/module-public-list-1"
+        "/lessons/lesson-public-list-1",
         json={"status": "published"},
     )
     assert lesson_publish_response.status_code == 200, lesson_publish_response.text
@@ -221,7 +223,8 @@ def test_public_course_rejects_invalid_viewer_timezone() -> None:
     assert module_publish_response.status_code == 200, module_publish_response.text
 
     lesson_publish_response = client.patch(
-        f"/v1/admin/courses/{course_id}/modules/module-public-2/lessons/lesson-public-2",
+        f"/v1/admin/courses/{course_id}/modules/module-public-2"
+        "/lessons/lesson-public-2",
         json={"status": "published"},
     )
     assert lesson_publish_response.status_code == 200, lesson_publish_response.text

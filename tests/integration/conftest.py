@@ -42,12 +42,14 @@ def clean_tables() -> None:
         try:
             conn.execute(
                 text(
-                    "TRUNCATE TABLE lesson_progress_projections RESTART IDENTITY CASCADE"
+                    "TRUNCATE TABLE lesson_progress_projections "
+                    "RESTART IDENTITY CASCADE"
                 )
             )
             conn.execute(
                 text(
-                    "TRUNCATE TABLE course_progress_projections RESTART IDENTITY CASCADE"
+                    "TRUNCATE TABLE course_progress_projections "
+                    "RESTART IDENTITY CASCADE"
                 )
             )
             conn.execute(

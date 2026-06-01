@@ -48,7 +48,8 @@ def test_users_service_adapters_forward_correlation_id(
         _fake_urlopen,
     )
     monkeypatch.setattr(
-        "src.infrastructure.users.users_service_parent_student_relation_checker.urlopen",
+        "src.infrastructure.users."
+        "users_service_parent_student_relation_checker.urlopen",
         _fake_urlopen,
     )
 

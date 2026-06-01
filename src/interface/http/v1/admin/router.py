@@ -17,7 +17,11 @@ from src.application.courses.commands.dto import (
     UpdateLessonCommand,
     UpdateModuleCommand,
 )
-from src.application.courses.queries.dto import GetCourseByIdQuery
+from src.application.courses.queries.dto import (
+    GetCourseAuthoringQuery,
+    GetCourseByIdQuery,
+    ListAdminCoursesQuery,
+)
 from src.domain.errors import AccessDeniedError, InvariantViolationError, NotFoundError
 from src.interface.http.common.actor import HttpActor, get_http_actor
 from src.interface.http.common.rate_limit import (
@@ -31,6 +35,10 @@ from src.interface.http.common.timezone import (
 from src.interface.http.v1.schemas.course import (
     AddLessonRequest,
     AddModuleRequest,
+    AdminCourseListItemResponse,
+    AdminCourseListResponse,
+    CourseAuthoringModuleResponse,
+    CourseAuthoringResponse,
     CourseResponse,
     CreateCourseRequest,
     SeoResponse,
@@ -83,6 +91,24 @@ def _to_course_response(
     return CourseResponse(**payload)
 
 
+def _to_course_authoring_response(result, viewer_timezone: str | None = None):
+    return CourseAuthoringResponse(
+        course=_to_course_response(result.course, viewer_timezone=viewer_timezone),
+        modules=[
+            CourseAuthoringModuleResponse(
+                **{
+                    **asdict(module),
+                    "lessons": [asdict(lesson) for lesson in module.lessons],
+                }
+            )
+            for module in result.modules
+        ],
+        version=result.version,
+        created_at=result.created_at,
+        updated_at=result.updated_at,
+    )
+
+
 @router.post("/courses", response_model=CourseResponse, status_code=201)
 def create_course(
     payload: CreateCourseRequest,
@@ -132,6 +158,41 @@ def create_course(
     except InvariantViolationError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return _to_course_response(result)
+
+
+@router.get("/courses", response_model=AdminCourseListResponse)
+def list_courses(
+    publish_state: str | None = Query(default=None),
+    teacher_id: str | None = Query(default=None),
+    q: str | None = Query(default=None),
+    limit: int = Query(default=100, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
+    actor: HttpActor = Depends(get_http_actor),
+    facade=Depends(get_facade),
+) -> AdminCourseListResponse:
+    """Возвращает admin/studio список курсов."""
+
+    try:
+        result = facade.query(
+            ListAdminCoursesQuery(
+                actor_id=actor.actor_id,
+                actor_roles=actor.roles,
+                publish_state=publish_state,
+                teacher_id=teacher_id,
+                search=q,
+                limit=limit,
+                offset=offset,
+            )
+        )
+    except AccessDeniedError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+    except InvariantViolationError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return AdminCourseListResponse(
+        items=[AdminCourseListItemResponse(**asdict(item)) for item in result],
+        limit=limit,
+        offset=offset,
+    )
 
 
 @router.patch("/courses/{course_id}", response_model=CourseResponse)
@@ -211,6 +272,30 @@ def get_course(
     except AccessDeniedError as exc:
         raise HTTPException(status_code=403, detail=str(exc)) from exc
     return _to_course_response(result, viewer_timezone=viewer_timezone)
+
+
+@router.get("/courses/{course_id}/authoring", response_model=CourseAuthoringResponse)
+def get_course_authoring(
+    course_id: str,
+    viewer_timezone: str | None = Query(default=None),
+    actor: HttpActor = Depends(get_http_actor),
+    facade=Depends(get_facade),
+) -> CourseAuthoringResponse:
+    """Возвращает полный admin/studio read model курса."""
+
+    validate_viewer_timezone(viewer_timezone)
+
+    try:
+        result = facade.query(
+            GetCourseAuthoringQuery(
+                course_id=course_id, actor_id=actor.actor_id, actor_roles=actor.roles
+            )
+        )
+    except NotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except AccessDeniedError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+    return _to_course_authoring_response(result, viewer_timezone=viewer_timezone)
 
 
 @router.post("/courses/{course_id}/modules", response_model=CourseResponse)

@@ -224,6 +224,79 @@ class CourseResponse(BaseModel):
     seo: SeoResponse
 
 
+class CourseAuthoringLessonResponse(BaseModel):
+    """Lesson item внутри admin/studio authoring response."""
+
+    lesson_id: str
+    title: str
+    description: str | None
+    content_type: str
+    content_ref: str | None
+    duration_minutes: int | None
+    is_preview: bool
+    released_at: datetime | None
+    status: str
+    position: int = Field(ge=1)
+    version: int = Field(ge=1)
+    created_at: datetime
+    updated_at: datetime
+
+
+class CourseAuthoringModuleResponse(BaseModel):
+    """Module item внутри admin/studio authoring response."""
+
+    module_id: str
+    title: str
+    description: str | None
+    is_required: bool
+    released_at: datetime | None
+    status: str
+    position: int = Field(ge=1)
+    lessons_count: int = Field(ge=0)
+    lessons: list[CourseAuthoringLessonResponse]
+    version: int = Field(ge=1)
+    created_at: datetime
+    updated_at: datetime
+
+
+class CourseAuthoringResponse(BaseModel):
+    """Полный admin/studio response курса для редактора."""
+
+    course: CourseResponse
+    modules: list[CourseAuthoringModuleResponse]
+    version: int = Field(ge=1)
+    created_at: datetime
+    updated_at: datetime
+
+
+class AdminCourseListItemResponse(BaseModel):
+    """Summary курса для admin/studio списка."""
+
+    course_id: str
+    title: str
+    teacher_id: str
+    teacher_display_name: str | None
+    slug: str
+    publish_state: str
+    price: float
+    currency: str
+    modules_count: int = Field(ge=0)
+    lessons_total: int = Field(ge=0)
+    published_at: datetime | None
+    archived_at: datetime | None
+    created_at: datetime
+    updated_at: datetime
+    version: int = Field(ge=1)
+
+
+class AdminCourseListResponse(BaseModel):
+    """Admin/studio список курсов."""
+
+    items: list[AdminCourseListItemResponse]
+    limit: int = Field(ge=1)
+    offset: int = Field(ge=0)
+
+
 class PublicCourseResponse(BaseModel):
     """Публичный response опубликованного курса."""
 

@@ -137,6 +137,150 @@ def test_admin_create_update_get_course_flow() -> None:
     assert archive_ok.json()["publish_state"] == "archived"
 
 
+def test_admin_authoring_read_model_returns_modules_and_lessons() -> None:
+    client = _client_with_actor("admin-1", ["admin"])
+
+    create_response = client.post(
+        "/v1/admin/courses",
+        json={
+            "title": "Studio Course",
+            "teacher_id": "teacher-1",
+            "starts_at": "2026-09-01T09:00:00Z",
+            "duration_days": 30,
+            "slug": "studio-course",
+        },
+    )
+    assert create_response.status_code == 201, create_response.text
+    course_id = create_response.json()["course_id"]
+
+    add_module = client.post(
+        f"/v1/admin/courses/{course_id}/modules",
+        json={
+            "module_id": "studio-module-1",
+            "title": "Module 1",
+            "description": "Authoring module",
+            "is_required": True,
+        },
+    )
+    assert add_module.status_code == 200, add_module.text
+
+    add_lesson = client.post(
+        f"/v1/admin/courses/{course_id}/modules/studio-module-1/lessons",
+        json={
+            "lesson_id": "studio-lesson-1",
+            "title": "Lesson 1",
+            "description": "Authoring lesson",
+            "content_type": "video",
+            "content_ref": "https://cdn.example.com/lesson-1.mp4",
+            "duration_minutes": 12,
+            "is_preview": True,
+        },
+    )
+    assert add_lesson.status_code == 200, add_lesson.text
+
+    response = client.get(f"/v1/admin/courses/{course_id}/authoring")
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["course"]["course_id"] == course_id
+    assert payload["course"]["modules_count"] == 1
+    assert payload["modules"][0]["module_id"] == "studio-module-1"
+    assert payload["modules"][0]["position"] == 1
+    assert payload["modules"][0]["lessons_count"] == 1
+    assert payload["modules"][0]["lessons"][0]["lesson_id"] == "studio-lesson-1"
+    assert payload["modules"][0]["lessons"][0]["position"] == 1
+    assert payload["modules"][0]["lessons"][0]["content_ref"].endswith("lesson-1.mp4")
+
+
+def test_admin_courses_list_filters_by_status_teacher_and_search() -> None:
+    client = _client_with_actor("admin-1", ["admin"])
+
+    first = client.post(
+        "/v1/admin/courses",
+        json={
+            "title": "Studio Draft",
+            "teacher_id": "teacher-1",
+            "starts_at": "2026-09-01T09:00:00Z",
+            "duration_days": 30,
+            "slug": "studio-draft",
+        },
+    )
+    second = client.post(
+        "/v1/admin/courses",
+        json={
+            "title": "Other Course",
+            "teacher_id": "teacher-22",
+            "starts_at": "2026-09-01T09:00:00Z",
+            "duration_days": 30,
+            "slug": "other-course",
+        },
+    )
+    assert first.status_code == 201, first.text
+    assert second.status_code == 201, second.text
+
+    response = client.get(
+        "/v1/admin/courses",
+        params={
+            "publish_state": "draft",
+            "teacher_id": "teacher-1",
+            "q": "studio",
+            "limit": 50,
+            "offset": 0,
+        },
+    )
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["limit"] == 50
+    assert payload["offset"] == 0
+    assert [item["course_id"] for item in payload["items"]] == [
+        first.json()["course_id"]
+    ]
+    assert payload["items"][0]["publish_state"] == "draft"
+
+
+def test_teacher_courses_list_is_scoped_to_owner() -> None:
+    os.environ["COURSE_USE_INMEMORY"] = "1"
+    get_runtime.cache_clear()
+    app = create_app()
+    actor_state = {"actor_id": "admin-1", "roles": ["admin"]}
+    app.dependency_overrides[get_http_actor] = lambda: HttpActor(
+        actor_id=actor_state["actor_id"],
+        roles=actor_state["roles"],
+    )
+    client = TestClient(app)
+
+    first = client.post(
+        "/v1/admin/courses",
+        json={
+            "title": "Teacher Owned",
+            "teacher_id": "teacher-1",
+            "starts_at": "2026-09-01T09:00:00Z",
+            "duration_days": 30,
+        },
+    )
+    second = client.post(
+        "/v1/admin/courses",
+        json={
+            "title": "Other Teacher Owned",
+            "teacher_id": "teacher-22",
+            "starts_at": "2026-09-01T09:00:00Z",
+            "duration_days": 30,
+        },
+    )
+    assert first.status_code == 201, first.text
+    assert second.status_code == 201, second.text
+
+    actor_state["actor_id"] = "teacher-1"
+    actor_state["roles"] = ["teacher"]
+    response = client.get("/v1/admin/courses")
+    assert response.status_code == 200, response.text
+    assert [item["course_id"] for item in response.json()["items"]] == [
+        first.json()["course_id"]
+    ]
+
+    denied = client.get("/v1/admin/courses", params={"teacher_id": "teacher-22"})
+    assert denied.status_code == 403
+
+
 def test_teacher_can_create_only_for_self() -> None:
     client = _client_with_actor("teacher-22", ["teacher"])
 

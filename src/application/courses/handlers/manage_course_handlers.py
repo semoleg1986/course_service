@@ -6,8 +6,15 @@ import re
 from collections.abc import Callable
 from uuid import uuid4
 
-from src.application.common.dto import CourseResult, PublicCourseResult
+from src.application.common.dto import (
+    AdminCourseListItemResult,
+    CourseAuthoringResult,
+    CourseResult,
+    PublicCourseResult,
+)
 from src.application.common.mappers import (
+    to_admin_course_list_item_result,
+    to_course_authoring_result,
     to_course_result,
     to_public_course_card_result,
     to_public_course_result,
@@ -23,8 +30,10 @@ from src.application.courses.commands.dto import (
     UpdateModuleCommand,
 )
 from src.application.courses.queries.dto import (
+    GetCourseAuthoringQuery,
     GetCourseByIdQuery,
     GetPublishedCourseBySlugQuery,
+    ListAdminCoursesQuery,
     ListPublishedCoursesQuery,
 )
 from src.application.ports.audit_evidence import AuditEvidenceRecord
@@ -228,7 +237,8 @@ class UpdateCourseHandler:
                 teacher = self._teacher_directory.get_teacher(command.teacher_id)
                 if teacher is None:
                     raise InvariantViolationError(
-                        "teacher_id не найден в users_service или не имеет роли teacher."
+                        "teacher_id не найден в users_service "
+                        "или не имеет роли teacher."
                     )
                 course.teacher_id = command.teacher_id
                 resolved_teacher_display_name = teacher.display_name
@@ -352,6 +362,61 @@ class GetCourseByIdHandler:
         if "admin" not in role_set and course.teacher_id != query.actor_id:
             raise AccessDeniedError("Просмотр курса разрешен только owner/admin.")
         return to_course_result(course)
+
+
+class GetCourseAuthoringHandler:
+    """Возвращает полный admin/studio read model курса."""
+
+    def __init__(self, *, repository: CourseRepository) -> None:
+        self._repository = repository
+
+    def __call__(self, query: GetCourseAuthoringQuery) -> CourseAuthoringResult:
+        _ensure_admin_or_teacher(query.actor_roles)
+        course = self._repository.get(query.course_id)
+        if course is None:
+            raise NotFoundError("Курс не найден.")
+
+        role_set = {role.strip().lower() for role in query.actor_roles if role.strip()}
+        if "admin" not in role_set and course.teacher_id != query.actor_id:
+            raise AccessDeniedError("Просмотр курса разрешен только owner/admin.")
+        return to_course_authoring_result(course)
+
+
+class ListAdminCoursesHandler:
+    """Возвращает admin/studio список курсов."""
+
+    def __init__(self, *, repository: CourseRepository) -> None:
+        self._repository = repository
+
+    def __call__(self, query: ListAdminCoursesQuery) -> list[AdminCourseListItemResult]:
+        _ensure_admin_or_teacher(query.actor_roles)
+        role_set = {role.strip().lower() for role in query.actor_roles if role.strip()}
+        publish_state = query.publish_state.strip() if query.publish_state else None
+        if publish_state is not None:
+            try:
+                publish_state = PublishState(publish_state).value
+            except ValueError as exc:
+                raise InvariantViolationError("publish_state некорректен.") from exc
+
+        effective_teacher_id = query.teacher_id.strip() if query.teacher_id else None
+        if "admin" not in role_set:
+            if (
+                effective_teacher_id is not None
+                and effective_teacher_id != query.actor_id
+            ):
+                raise AccessDeniedError(
+                    "teacher может смотреть только список своих курсов."
+                )
+            effective_teacher_id = query.actor_id
+
+        courses = self._repository.list_admin(
+            publish_state=publish_state,
+            teacher_id=effective_teacher_id,
+            search=query.search,
+            limit=query.limit,
+            offset=query.offset,
+        )
+        return [to_admin_course_list_item_result(course) for course in courses]
 
 
 class GetPublishedCourseBySlugHandler:
@@ -672,7 +737,12 @@ class UpdateLessonHandler:
             if module is None:
                 raise NotFoundError("Модуль не найден.")
             lesson = next(
-                (l for l in module.lessons if l.lesson_id == command.lesson_id), None
+                (
+                    item
+                    for item in module.lessons
+                    if item.lesson_id == command.lesson_id
+                ),
+                None,
             )
             if lesson is None:
                 raise NotFoundError("Урок не найден.")

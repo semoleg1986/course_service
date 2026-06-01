@@ -182,7 +182,8 @@ def test_parent_progress_happy_path_with_pagination_and_filter() -> None:
     )
 
     response = client.get(
-        "/v1/parent/students/student-1/courses/progress?limit=20&offset=0&status=in_progress"
+        "/v1/parent/students/student-1/courses/progress",
+        params={"limit": 20, "offset": 0, "status": "in_progress"},
     )
     assert response.status_code == 200, response.text
     body = response.json()
@@ -197,7 +198,8 @@ def test_parent_progress_happy_path_with_pagination_and_filter() -> None:
     assert body["items"][0]["status"] == "in_progress"
 
     completed_only = client.get(
-        "/v1/parent/students/student-1/courses/progress?limit=1&offset=0&status=completed"
+        "/v1/parent/students/student-1/courses/progress",
+        params={"limit": 1, "offset": 0, "status": "completed"},
     )
     assert completed_only.status_code == 200, completed_only.text
     completed_items = completed_only.json()["items"]
@@ -239,7 +241,8 @@ def test_parent_completed_courses_endpoint() -> None:
     assert completed_at is not None
 
     response = client.get(
-        "/v1/parent/students/student-1/courses/completed?limit=10&offset=0&viewer_timezone=Asia/Tbilisi"
+        "/v1/parent/students/student-1/courses/completed",
+        params={"limit": 10, "offset": 0, "viewer_timezone": "Asia/Tbilisi"},
     )
     assert response.status_code == 200, response.text
     body = response.json()

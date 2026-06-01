@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, or_, select
 from sqlalchemy.orm import Session, sessionmaker
 
 from src.domain.content.course.entity import Course, Lesson, Module
@@ -51,6 +51,40 @@ class SqlalchemyCourseRepository:
                 .where(CourseCatalogModel.publish_state == PublishState.PUBLISHED.value)
                 .order_by(
                     CourseCatalogModel.published_at.desc().nullslast(),
+                    CourseCatalogModel.created_at.desc(),
+                )
+                .offset(offset)
+                .limit(limit)
+            )
+            models = db.execute(stmt).scalars().all()
+            return [self._to_entity_with_children(model) for model in models]
+
+    def list_admin(
+        self,
+        *,
+        publish_state: str | None = None,
+        teacher_id: str | None = None,
+        search: str | None = None,
+        limit: int = 100,
+        offset: int = 0,
+    ) -> list[Course]:
+        with managed_session(self._session_factory) as db:
+            stmt = select(CourseCatalogModel)
+            if publish_state is not None:
+                stmt = stmt.where(CourseCatalogModel.publish_state == publish_state)
+            if teacher_id is not None:
+                stmt = stmt.where(CourseCatalogModel.teacher_id == teacher_id)
+            if search:
+                pattern = f"%{search.strip()}%"
+                stmt = stmt.where(
+                    or_(
+                        CourseCatalogModel.title.ilike(pattern),
+                        CourseCatalogModel.slug.ilike(pattern),
+                    )
+                )
+            stmt = (
+                stmt.order_by(
+                    CourseCatalogModel.updated_at.desc(),
                     CourseCatalogModel.created_at.desc(),
                 )
                 .offset(offset)
