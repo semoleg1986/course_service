@@ -8,8 +8,11 @@
 - `title`
 - `status`
 - `detail`
-- `instance` (опционально)
-- `request_id` (рекомендуется)
+- `instance`
+- `request_id`
+- `correlation_id`
+
+`X-Request-ID` и `X-Correlation-ID` также возвращаются в headers, когда доступны.
 
 ## Пример
 
@@ -20,7 +23,8 @@
   "status": 409,
   "detail": "Курс нельзя публиковать без хотя бы одного модуля и урока",
   "instance": "/v1/admin/courses/8f5f/publish",
-  "request_id": "8bc28d0a-3af8-48a6-8c8d-f3915300fef5"
+  "request_id": "8bc28d0a-3af8-48a6-8c8d-f3915300fef5",
+  "correlation_id": "8bc28d0a-3af8-48a6-8c8d-f3915300fef5"
 }
 ```
 

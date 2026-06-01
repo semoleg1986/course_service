@@ -26,8 +26,14 @@ def test_http_error_response_contains_request_id() -> None:
     )
 
     assert response.status_code == 403
+    assert response.headers.get("content-type") == "application/problem+json"
     assert response.headers.get("X-Request-ID") == "req-course-001"
     assert response.headers.get("X-Correlation-ID") == "corr-course-001"
+    assert (
+        response.json().get("type") == "https://api.example.com/problems/access-denied"
+    )
+    assert response.json().get("title") == "Доступ запрещен"
+    assert response.json().get("status") == 403
     assert response.json().get("request_id") == "req-course-001"
     assert response.json().get("correlation_id") == "corr-course-001"
     assert response.json().get("detail") == "forbidden"
