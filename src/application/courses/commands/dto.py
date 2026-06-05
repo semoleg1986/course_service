@@ -144,6 +144,85 @@ class UpdateLessonCommand:
 
 
 @dataclass(frozen=True, slots=True)
+class ReorderModuleItemCommand:
+    """Позиция модуля внутри reorder-команды."""
+
+    module_id: str
+    position: int
+
+
+@dataclass(frozen=True, slots=True)
+class ReorderLessonItemCommand:
+    """Позиция урока внутри reorder-команды."""
+
+    lesson_id: str
+    position: int
+
+
+@dataclass(frozen=True, slots=True)
+class ReorderModulesCommand:
+    """Переупорядочивает модули курса."""
+
+    course_id: str
+    items: list[ReorderModuleItemCommand]
+    actor_id: str
+    actor_roles: list[str]
+
+
+@dataclass(frozen=True, slots=True)
+class ReorderLessonsCommand:
+    """Переупорядочивает уроки модуля курса."""
+
+    course_id: str
+    module_id: str
+    items: list[ReorderLessonItemCommand]
+    actor_id: str
+    actor_roles: list[str]
+
+
+@dataclass(frozen=True, slots=True)
+class ArchiveModuleCommand:
+    """Архивирует модуль курса."""
+
+    course_id: str
+    module_id: str
+    actor_id: str
+    actor_roles: list[str]
+
+
+@dataclass(frozen=True, slots=True)
+class ArchiveLessonCommand:
+    """Архивирует урок курса."""
+
+    course_id: str
+    module_id: str
+    lesson_id: str
+    actor_id: str
+    actor_roles: list[str]
+
+
+@dataclass(frozen=True, slots=True)
+class DuplicateModuleCommand:
+    """Дублирует модуль курса."""
+
+    course_id: str
+    module_id: str
+    actor_id: str
+    actor_roles: list[str]
+
+
+@dataclass(frozen=True, slots=True)
+class DuplicateLessonCommand:
+    """Дублирует урок курса."""
+
+    course_id: str
+    module_id: str
+    lesson_id: str
+    actor_id: str
+    actor_roles: list[str]
+
+
+@dataclass(frozen=True, slots=True)
 class PublishCourseCommand:
     """Публикует курс."""
 

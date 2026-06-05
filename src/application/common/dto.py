@@ -79,7 +79,9 @@ class CourseAuthoringLessonResult:
     position: int
     version: int
     created_at: datetime
+    created_by: str
     updated_at: datetime
+    updated_by: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -97,7 +99,27 @@ class CourseAuthoringModuleResult:
     lessons: list[CourseAuthoringLessonResult]
     version: int
     created_at: datetime
+    created_by: str
     updated_at: datetime
+    updated_by: str
+
+
+@dataclass(frozen=True, slots=True)
+class CourseAuthoringReadinessCheckResult:
+    """Один backend-owned readiness check для публикации курса."""
+
+    code: str
+    label: str
+    passed: bool
+    detail: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class CourseAuthoringReadinessResult:
+    """Сводная готовность курса к публикации."""
+
+    ready_to_publish: bool
+    checks: list[CourseAuthoringReadinessCheckResult]
 
 
 @dataclass(frozen=True, slots=True)
@@ -106,6 +128,10 @@ class CourseAuthoringResult:
 
     course: CourseResult
     modules: list[CourseAuthoringModuleResult]
+    readiness: CourseAuthoringReadinessResult
+    has_unpublished_changes: bool
+    draft_version: int
+    published_version: int | None
     version: int
     created_at: datetime
     updated_at: datetime

@@ -6,6 +6,8 @@ from src.application.common.dto import (
     AdminCourseListItemResult,
     CourseAuthoringLessonResult,
     CourseAuthoringModuleResult,
+    CourseAuthoringReadinessCheckResult,
+    CourseAuthoringReadinessResult,
     CourseAuthoringResult,
     CourseResult,
     PublicCourseCardResult,
@@ -63,6 +65,63 @@ def to_course_result(course: Course) -> CourseResult:
 def to_course_authoring_result(course: Course) -> CourseAuthoringResult:
     """Преобразует Course в полный admin/studio authoring read model."""
 
+    published_modules = [
+        module for module in course.modules if module.status == PublishState.PUBLISHED
+    ]
+    published_modules_with_lessons = [
+        module
+        for module in published_modules
+        if any(lesson.status == PublishState.PUBLISHED for lesson in module.lessons)
+    ]
+    seo_ready = bool(
+        course.slug.value and course.seo.meta_title and course.seo.meta_description
+    )
+    readiness_checks = [
+        CourseAuthoringReadinessCheckResult(
+            code="has_module",
+            label="Добавлен хотя бы один модуль",
+            passed=bool(course.modules),
+            detail=None if course.modules else "Добавьте модуль в структуру курса.",
+        ),
+        CourseAuthoringReadinessCheckResult(
+            code="has_published_module",
+            label="Есть published-модуль",
+            passed=bool(published_modules),
+            detail=(
+                None
+                if published_modules
+                else "Переведите минимум один модуль в статус published."
+            ),
+        ),
+        CourseAuthoringReadinessCheckResult(
+            code="published_modules_have_lessons",
+            label="В каждом published-модуле есть published-урок",
+            passed=bool(published_modules)
+            and len(published_modules) == len(published_modules_with_lessons),
+            detail=(
+                None
+                if published_modules
+                and len(published_modules) == len(published_modules_with_lessons)
+                else "Добавьте и опубликуйте уроки в published-модулях."
+            ),
+        ),
+        CourseAuthoringReadinessCheckResult(
+            code="seo_minimum",
+            label="Заполнен SEO-минимум",
+            passed=seo_ready,
+            detail=None if seo_ready else "Нужны slug, meta title и meta description.",
+        ),
+    ]
+    readiness = CourseAuthoringReadinessResult(
+        ready_to_publish=all(check.passed for check in readiness_checks),
+        checks=readiness_checks,
+    )
+    has_unpublished_changes = (
+        course.publish_state != PublishState.PUBLISHED
+        or course.published_at is None
+        or course.meta.updated_at > course.published_at
+    )
+
     modules = [
         CourseAuthoringModuleResult(
             module_id=module.module_id,
@@ -87,19 +146,32 @@ def to_course_authoring_result(course: Course) -> CourseAuthoringResult:
                     position=lesson_position,
                     version=lesson.meta.version,
                     created_at=lesson.meta.created_at,
+                    created_by=lesson.meta.created_by,
                     updated_at=lesson.meta.updated_at,
+                    updated_by=lesson.meta.updated_by,
                 )
                 for lesson_position, lesson in enumerate(module.lessons, start=1)
             ],
             version=module.meta.version,
             created_at=module.meta.created_at,
+            created_by=module.meta.created_by,
             updated_at=module.meta.updated_at,
+            updated_by=module.meta.updated_by,
         )
         for module_position, module in enumerate(course.modules, start=1)
     ]
     return CourseAuthoringResult(
         course=to_course_result(course),
         modules=modules,
+        readiness=readiness,
+        has_unpublished_changes=has_unpublished_changes,
+        draft_version=course.meta.version,
+        published_version=(
+            course.meta.version
+            if course.publish_state == PublishState.PUBLISHED
+            and not has_unpublished_changes
+            else None
+        ),
         version=course.meta.version,
         created_at=course.meta.created_at,
         updated_at=course.meta.updated_at,

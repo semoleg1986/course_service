@@ -11,8 +11,16 @@ from src.application.courses.commands.dto import (
     AddLessonCommand,
     AddModuleCommand,
     ArchiveCourseCommand,
+    ArchiveLessonCommand,
+    ArchiveModuleCommand,
     CreateCourseCommand,
+    DuplicateLessonCommand,
+    DuplicateModuleCommand,
     PublishCourseCommand,
+    ReorderLessonItemCommand,
+    ReorderLessonsCommand,
+    ReorderModuleItemCommand,
+    ReorderModulesCommand,
     UpdateCourseCommand,
     UpdateLessonCommand,
     UpdateModuleCommand,
@@ -41,6 +49,8 @@ from src.interface.http.v1.schemas.course import (
     CourseAuthoringResponse,
     CourseResponse,
     CreateCourseRequest,
+    ReorderLessonsRequest,
+    ReorderModulesRequest,
     SeoResponse,
     UpdateCourseRequest,
     UpdateLessonRequest,
@@ -103,6 +113,10 @@ def _to_course_authoring_response(result, viewer_timezone: str | None = None):
             )
             for module in result.modules
         ],
+        readiness=asdict(result.readiness),
+        has_unpublished_changes=result.has_unpublished_changes,
+        draft_version=result.draft_version,
+        published_version=result.published_version,
         version=result.version,
         created_at=result.created_at,
         updated_at=result.updated_at,
@@ -459,6 +473,102 @@ def update_module(
     return _to_course_response(result)
 
 
+@router.post(
+    "/courses/{course_id}/modules/{module_id}/archive",
+    response_model=CourseResponse,
+)
+def archive_module(
+    course_id: str,
+    module_id: str,
+    actor: HttpActor = Depends(get_http_actor),
+    facade=Depends(get_facade),
+) -> CourseResponse:
+    """Архивирует модуль курса."""
+
+    try:
+        result = facade.execute(
+            ArchiveModuleCommand(
+                course_id=course_id,
+                module_id=module_id,
+                actor_id=actor.actor_id,
+                actor_roles=actor.roles,
+            )
+        )
+    except NotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except AccessDeniedError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+    except InvariantViolationError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return _to_course_response(result)
+
+
+@router.post(
+    "/courses/{course_id}/modules/reorder",
+    response_model=CourseResponse,
+)
+def reorder_modules(
+    course_id: str,
+    payload: ReorderModulesRequest,
+    actor: HttpActor = Depends(get_http_actor),
+    facade=Depends(get_facade),
+) -> CourseResponse:
+    """Переупорядочивает модули курса."""
+
+    try:
+        result = facade.execute(
+            ReorderModulesCommand(
+                course_id=course_id,
+                items=[
+                    ReorderModuleItemCommand(
+                        module_id=item.module_id,
+                        position=item.position,
+                    )
+                    for item in payload.items
+                ],
+                actor_id=actor.actor_id,
+                actor_roles=actor.roles,
+            )
+        )
+    except NotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except AccessDeniedError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+    except InvariantViolationError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return _to_course_response(result)
+
+
+@router.post(
+    "/courses/{course_id}/modules/{module_id}/duplicate",
+    response_model=CourseResponse,
+)
+def duplicate_module(
+    course_id: str,
+    module_id: str,
+    actor: HttpActor = Depends(get_http_actor),
+    facade=Depends(get_facade),
+) -> CourseResponse:
+    """Дублирует модуль курса."""
+
+    try:
+        result = facade.execute(
+            DuplicateModuleCommand(
+                course_id=course_id,
+                module_id=module_id,
+                actor_id=actor.actor_id,
+                actor_roles=actor.roles,
+            )
+        )
+    except NotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except AccessDeniedError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+    except InvariantViolationError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return _to_course_response(result)
+
+
 @router.patch(
     "/courses/{course_id}/modules/{module_id}/lessons/{lesson_id}",
     response_model=CourseResponse,
@@ -489,6 +599,108 @@ def update_lesson(
                 is_preview=payload.is_preview,
                 released_at=payload.released_at,
                 status=payload.status,
+            )
+        )
+    except NotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except AccessDeniedError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+    except InvariantViolationError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return _to_course_response(result)
+
+
+@router.post(
+    "/courses/{course_id}/modules/{module_id}/lessons/{lesson_id}/archive",
+    response_model=CourseResponse,
+)
+def archive_lesson(
+    course_id: str,
+    module_id: str,
+    lesson_id: str,
+    actor: HttpActor = Depends(get_http_actor),
+    facade=Depends(get_facade),
+) -> CourseResponse:
+    """Архивирует урок курса."""
+
+    try:
+        result = facade.execute(
+            ArchiveLessonCommand(
+                course_id=course_id,
+                module_id=module_id,
+                lesson_id=lesson_id,
+                actor_id=actor.actor_id,
+                actor_roles=actor.roles,
+            )
+        )
+    except NotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except AccessDeniedError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+    except InvariantViolationError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return _to_course_response(result)
+
+
+@router.post(
+    "/courses/{course_id}/modules/{module_id}/lessons/reorder",
+    response_model=CourseResponse,
+)
+def reorder_lessons(
+    course_id: str,
+    module_id: str,
+    payload: ReorderLessonsRequest,
+    actor: HttpActor = Depends(get_http_actor),
+    facade=Depends(get_facade),
+) -> CourseResponse:
+    """Переупорядочивает уроки модуля курса."""
+
+    try:
+        result = facade.execute(
+            ReorderLessonsCommand(
+                course_id=course_id,
+                module_id=module_id,
+                items=[
+                    ReorderLessonItemCommand(
+                        lesson_id=item.lesson_id,
+                        position=item.position,
+                    )
+                    for item in payload.items
+                ],
+                actor_id=actor.actor_id,
+                actor_roles=actor.roles,
+            )
+        )
+    except NotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except AccessDeniedError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+    except InvariantViolationError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return _to_course_response(result)
+
+
+@router.post(
+    "/courses/{course_id}/modules/{module_id}/lessons/{lesson_id}/duplicate",
+    response_model=CourseResponse,
+)
+def duplicate_lesson(
+    course_id: str,
+    module_id: str,
+    lesson_id: str,
+    actor: HttpActor = Depends(get_http_actor),
+    facade=Depends(get_facade),
+) -> CourseResponse:
+    """Дублирует урок курса."""
+
+    try:
+        result = facade.execute(
+            DuplicateLessonCommand(
+                course_id=course_id,
+                module_id=module_id,
+                lesson_id=lesson_id,
+                actor_id=actor.actor_id,
+                actor_roles=actor.roles,
             )
         )
     except NotFoundError as exc:

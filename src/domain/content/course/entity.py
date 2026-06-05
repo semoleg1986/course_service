@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime
 
-from src.domain.errors import InvariantViolationError
+from src.domain.errors import InvariantViolationError, NotFoundError
 from src.domain.shared.entity import EntityMeta
 from src.domain.shared.statuses import PublishState
 
@@ -105,6 +105,33 @@ class Lesson:
             self.status = PublishState(status)
         self.meta.touch(at=changed_at, actor_id=changed_by)
 
+    def archive(self, *, changed_at: datetime, changed_by: str) -> None:
+        """Архивировать урок внутри authoring-структуры курса."""
+        self.status = PublishState.ARCHIVED
+        self.meta.touch(at=changed_at, actor_id=changed_by)
+
+    def duplicate(
+        self,
+        *,
+        lesson_id: str,
+        title: str,
+        changed_at: datetime,
+        changed_by: str,
+    ) -> "Lesson":
+        """Создать draft-копию урока для authoring UX."""
+        return Lesson(
+            lesson_id=lesson_id,
+            title=title,
+            description=self.description,
+            content_type=self.content_type,
+            content_ref=self.content_ref,
+            duration_minutes=self.duration_minutes,
+            is_preview=self.is_preview,
+            released_at=self.released_at,
+            status=PublishState.DRAFT,
+            meta=EntityMeta.create(at=changed_at, actor_id=changed_by),
+        )
+
 
 @dataclass(slots=True)
 class Module:
@@ -178,6 +205,66 @@ class Module:
             self.released_at = released_at
         if status is not None:
             self.status = PublishState(status)
+        self.meta.touch(at=changed_at, actor_id=changed_by)
+
+    def archive(self, *, changed_at: datetime, changed_by: str) -> None:
+        """Архивировать модуль внутри authoring-структуры курса."""
+        self.status = PublishState.ARCHIVED
+        self.meta.touch(at=changed_at, actor_id=changed_by)
+
+    def duplicate(
+        self,
+        *,
+        module_id: str,
+        title: str,
+        lesson_ids: list[str],
+        changed_at: datetime,
+        changed_by: str,
+    ) -> "Module":
+        """Создать draft-копию модуля вместе с draft-копиями уроков."""
+        if len(lesson_ids) != len(self.lessons):
+            raise InvariantViolationError("Количество новых lesson_id некорректно.")
+        module = Module(
+            module_id=module_id,
+            title=title,
+            description=self.description,
+            is_required=self.is_required,
+            released_at=self.released_at,
+            status=PublishState.DRAFT,
+            meta=EntityMeta.create(at=changed_at, actor_id=changed_by),
+            lessons=[],
+        )
+        module.lessons = [
+            lesson.duplicate(
+                lesson_id=new_lesson_id,
+                title=f"{lesson.title} copy",
+                changed_at=changed_at,
+                changed_by=changed_by,
+            )
+            for lesson, new_lesson_id in zip(self.lessons, lesson_ids, strict=True)
+        ]
+        return module
+
+    def reorder_lessons(
+        self,
+        *,
+        ordered_lesson_ids: list[str],
+        changed_at: datetime,
+        changed_by: str,
+    ) -> None:
+        """Переупорядочить уроки модуля с полной проверкой состава."""
+        if len(ordered_lesson_ids) != len(set(ordered_lesson_ids)):
+            raise InvariantViolationError("Список lesson_id содержит дубликаты.")
+
+        current_by_id = {lesson.lesson_id: lesson for lesson in self.lessons}
+        current_ids = set(current_by_id)
+        requested_ids = set(ordered_lesson_ids)
+        if current_ids != requested_ids:
+            raise InvariantViolationError(
+                "reorder lessons должен передавать полный текущий список lesson_id."
+            )
+
+        self.lessons = [current_by_id[lesson_id] for lesson_id in ordered_lesson_ids]
         self.meta.touch(at=changed_at, actor_id=changed_by)
 
 
@@ -307,6 +394,142 @@ class Course:
     def add_module(self, module: Module, changed_at: datetime, changed_by: str) -> None:
         """Добавить модуль в курс."""
         self.modules.append(module)
+        self.meta.touch(at=changed_at, actor_id=changed_by)
+
+    def archive_module(
+        self,
+        *,
+        module_id: str,
+        changed_at: datetime,
+        changed_by: str,
+    ) -> None:
+        """Архивировать модуль курса."""
+        module = next(
+            (item for item in self.modules if item.module_id == module_id),
+            None,
+        )
+        if module is None:
+            raise NotFoundError("Модуль не найден.")
+        module.archive(changed_at=changed_at, changed_by=changed_by)
+        self.meta.touch(at=changed_at, actor_id=changed_by)
+
+    def archive_lesson(
+        self,
+        *,
+        module_id: str,
+        lesson_id: str,
+        changed_at: datetime,
+        changed_by: str,
+    ) -> None:
+        """Архивировать урок курса."""
+        module = next(
+            (item for item in self.modules if item.module_id == module_id),
+            None,
+        )
+        if module is None:
+            raise NotFoundError("Модуль не найден.")
+        lesson = next(
+            (item for item in module.lessons if item.lesson_id == lesson_id),
+            None,
+        )
+        if lesson is None:
+            raise NotFoundError("Урок не найден.")
+        lesson.archive(changed_at=changed_at, changed_by=changed_by)
+        module.meta.touch(at=changed_at, actor_id=changed_by)
+        self.meta.touch(at=changed_at, actor_id=changed_by)
+
+    def duplicate_module(
+        self,
+        *,
+        module_id: str,
+        new_module_id: str,
+        new_lesson_ids: list[str],
+        changed_at: datetime,
+        changed_by: str,
+    ) -> Module:
+        """Скопировать модуль и добавить копию сразу после оригинала."""
+        source_index = next(
+            (
+                index
+                for index, item in enumerate(self.modules)
+                if item.module_id == module_id
+            ),
+            None,
+        )
+        if source_index is None:
+            raise NotFoundError("Модуль не найден.")
+        if any(item.module_id == new_module_id for item in self.modules):
+            raise InvariantViolationError("new_module_id уже существует.")
+        duplicated = self.modules[source_index].duplicate(
+            module_id=new_module_id,
+            title=f"{self.modules[source_index].title} copy",
+            lesson_ids=new_lesson_ids,
+            changed_at=changed_at,
+            changed_by=changed_by,
+        )
+        self.modules.insert(source_index + 1, duplicated)
+        self.meta.touch(at=changed_at, actor_id=changed_by)
+        return duplicated
+
+    def duplicate_lesson(
+        self,
+        *,
+        module_id: str,
+        lesson_id: str,
+        new_lesson_id: str,
+        changed_at: datetime,
+        changed_by: str,
+    ) -> Lesson:
+        """Скопировать урок и добавить копию сразу после оригинала."""
+        module = next(
+            (item for item in self.modules if item.module_id == module_id),
+            None,
+        )
+        if module is None:
+            raise NotFoundError("Модуль не найден.")
+        source_index = next(
+            (
+                index
+                for index, item in enumerate(module.lessons)
+                if item.lesson_id == lesson_id
+            ),
+            None,
+        )
+        if source_index is None:
+            raise NotFoundError("Урок не найден.")
+        if any(item.lesson_id == new_lesson_id for item in module.lessons):
+            raise InvariantViolationError("new_lesson_id уже существует.")
+        duplicated = module.lessons[source_index].duplicate(
+            lesson_id=new_lesson_id,
+            title=f"{module.lessons[source_index].title} copy",
+            changed_at=changed_at,
+            changed_by=changed_by,
+        )
+        module.lessons.insert(source_index + 1, duplicated)
+        module.meta.touch(at=changed_at, actor_id=changed_by)
+        self.meta.touch(at=changed_at, actor_id=changed_by)
+        return duplicated
+
+    def reorder_modules(
+        self,
+        *,
+        ordered_module_ids: list[str],
+        changed_at: datetime,
+        changed_by: str,
+    ) -> None:
+        """Переупорядочить модули курса с полной проверкой состава."""
+        if len(ordered_module_ids) != len(set(ordered_module_ids)):
+            raise InvariantViolationError("Список module_id содержит дубликаты.")
+
+        current_by_id = {module.module_id: module for module in self.modules}
+        current_ids = set(current_by_id)
+        requested_ids = set(ordered_module_ids)
+        if current_ids != requested_ids:
+            raise InvariantViolationError(
+                "reorder modules должен передавать полный текущий список module_id."
+            )
+
+        self.modules = [current_by_id[module_id] for module_id in ordered_module_ids]
         self.meta.touch(at=changed_at, actor_id=changed_by)
 
     def publish(self, changed_at: datetime, changed_by: str) -> None:

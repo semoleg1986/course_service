@@ -189,6 +189,137 @@ def test_admin_authoring_read_model_returns_modules_and_lessons() -> None:
     assert payload["modules"][0]["lessons"][0]["lesson_id"] == "studio-lesson-1"
     assert payload["modules"][0]["lessons"][0]["position"] == 1
     assert payload["modules"][0]["lessons"][0]["content_ref"].endswith("lesson-1.mp4")
+    assert payload["modules"][0]["created_by"] == "admin-1"
+    assert payload["modules"][0]["updated_by"] == "admin-1"
+    assert payload["modules"][0]["lessons"][0]["created_by"] == "admin-1"
+    assert payload["modules"][0]["lessons"][0]["updated_by"] == "admin-1"
+    assert payload["readiness"]["ready_to_publish"] is False
+    assert payload["has_unpublished_changes"] is True
+    assert payload["draft_version"] == payload["version"]
+
+
+def test_admin_authoring_reorder_archive_and_readiness_flow() -> None:
+    client = _client_with_actor("admin-1", ["admin"])
+
+    create_response = client.post(
+        "/v1/admin/courses",
+        json={
+            "title": "Builder Course",
+            "teacher_id": "teacher-1",
+            "starts_at": "2026-09-01T09:00:00Z",
+            "duration_days": 30,
+            "slug": "builder-course",
+        },
+    )
+    assert create_response.status_code == 201, create_response.text
+    course_id = create_response.json()["course_id"]
+
+    for module_id in ["module-a", "module-b"]:
+        response = client.post(
+            f"/v1/admin/courses/{course_id}/modules",
+            json={"module_id": module_id, "title": module_id},
+        )
+        assert response.status_code == 200, response.text
+
+    for lesson_id in ["lesson-a", "lesson-b"]:
+        response = client.post(
+            f"/v1/admin/courses/{course_id}/modules/module-a/lessons",
+            json={"lesson_id": lesson_id, "title": lesson_id},
+        )
+        assert response.status_code == 200, response.text
+
+    reorder_modules = client.post(
+        f"/v1/admin/courses/{course_id}/modules/reorder",
+        json={
+            "items": [
+                {"module_id": "module-b", "position": 1},
+                {"module_id": "module-a", "position": 2},
+            ]
+        },
+    )
+    assert reorder_modules.status_code == 200, reorder_modules.text
+
+    reorder_lessons = client.post(
+        f"/v1/admin/courses/{course_id}/modules/module-a/lessons/reorder",
+        json={
+            "items": [
+                {"lesson_id": "lesson-b", "position": 1},
+                {"lesson_id": "lesson-a", "position": 2},
+            ]
+        },
+    )
+    assert reorder_lessons.status_code == 200, reorder_lessons.text
+
+    duplicate_reorder = client.post(
+        f"/v1/admin/courses/{course_id}/modules/reorder",
+        json={
+            "items": [
+                {"module_id": "module-b", "position": 1},
+                {"module_id": "module-b", "position": 2},
+            ]
+        },
+    )
+    assert duplicate_reorder.status_code == 400
+
+    duplicate_lesson = client.post(
+        f"/v1/admin/courses/{course_id}/modules/module-a/lessons/lesson-b/duplicate"
+    )
+    assert duplicate_lesson.status_code == 200, duplicate_lesson.text
+
+    duplicate_module = client.post(
+        f"/v1/admin/courses/{course_id}/modules/module-a/duplicate"
+    )
+    assert duplicate_module.status_code == 200, duplicate_module.text
+
+    archive_lesson = client.post(
+        f"/v1/admin/courses/{course_id}/modules/module-a/lessons/lesson-a/archive"
+    )
+    assert archive_lesson.status_code == 200, archive_lesson.text
+
+    archive_module = client.post(
+        f"/v1/admin/courses/{course_id}/modules/module-b/archive"
+    )
+    assert archive_module.status_code == 200, archive_module.text
+
+    module_publish = client.patch(
+        f"/v1/admin/courses/{course_id}/modules/module-a",
+        json={"status": "published"},
+    )
+    assert module_publish.status_code == 200, module_publish.text
+
+    lesson_publish = client.patch(
+        f"/v1/admin/courses/{course_id}/modules/module-a/lessons/lesson-b",
+        json={"status": "published"},
+    )
+    assert lesson_publish.status_code == 200, lesson_publish.text
+
+    authoring = client.get(f"/v1/admin/courses/{course_id}/authoring")
+    assert authoring.status_code == 200, authoring.text
+    payload = authoring.json()
+    assert [module["module_id"] for module in payload["modules"]] == [
+        "module-b",
+        "module-a",
+        payload["modules"][2]["module_id"],
+    ]
+    assert payload["modules"][0]["status"] == "archived"
+    assert payload["modules"][2]["title"] == "module-a copy"
+    assert payload["modules"][2]["status"] == "draft"
+    lesson_ids = [lesson["lesson_id"] for lesson in payload["modules"][1]["lessons"]]
+    assert lesson_ids[0] == "lesson-b"
+    assert lesson_ids[2] == "lesson-a"
+    assert payload["modules"][1]["lessons"][1]["title"] == "lesson-b copy"
+    assert payload["modules"][1]["lessons"][1]["status"] == "draft"
+    assert payload["modules"][1]["lessons"][2]["status"] == "archived"
+    assert payload["readiness"]["ready_to_publish"] is True
+
+    publish_ok = client.post(f"/v1/admin/courses/{course_id}/publish")
+    assert publish_ok.status_code == 200, publish_ok.text
+
+    published_authoring = client.get(f"/v1/admin/courses/{course_id}/authoring")
+    assert published_authoring.status_code == 200, published_authoring.text
+    published_payload = published_authoring.json()
+    assert published_payload["has_unpublished_changes"] is False
+    assert published_payload["published_version"] == published_payload["version"]
 
 
 def test_admin_courses_list_filters_by_status_teacher_and_search() -> None:

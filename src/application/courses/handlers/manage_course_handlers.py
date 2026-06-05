@@ -23,8 +23,14 @@ from src.application.courses.commands.dto import (
     AddLessonCommand,
     AddModuleCommand,
     ArchiveCourseCommand,
+    ArchiveLessonCommand,
+    ArchiveModuleCommand,
     CreateCourseCommand,
+    DuplicateLessonCommand,
+    DuplicateModuleCommand,
     PublishCourseCommand,
+    ReorderLessonsCommand,
+    ReorderModulesCommand,
     UpdateCourseCommand,
     UpdateLessonCommand,
     UpdateModuleCommand,
@@ -85,6 +91,36 @@ def _resolve_display_name(
 
 def _close_uow(uow: UnitOfWork) -> None:
     uow.close()
+
+
+def _ensure_course_editor(
+    *,
+    course: Course,
+    actor_id: str,
+    actor_roles: list[str],
+    action: str,
+) -> None:
+    role_set = {role.strip().lower() for role in actor_roles if role.strip()}
+    if "admin" in role_set or course.teacher_id == actor_id:
+        return
+    raise AccessDeniedError(f"{action} может только owner/admin.")
+
+
+def _ordered_item_ids(items: list, *, entity_name: str, id_field: str) -> list[str]:
+    if not items:
+        raise InvariantViolationError(f"reorder {entity_name} требует items.")
+    positions = [item.position for item in items]
+    if any(position < 1 for position in positions):
+        raise InvariantViolationError("position должен быть >= 1.")
+    if len(positions) != len(set(positions)):
+        raise InvariantViolationError("Список position содержит дубликаты.")
+    expected_positions = set(range(1, len(items) + 1))
+    if set(positions) != expected_positions:
+        raise InvariantViolationError("position должен быть непрерывным с 1.")
+    return [
+        getattr(item, id_field)
+        for item in sorted(items, key=lambda item: item.position)
+    ]
 
 
 class CreateCourseHandler:
@@ -787,6 +823,256 @@ class UpdateLessonHandler:
             )
             module.meta.touch(at=self._clock.now(), actor_id=command.actor_id)
             course.meta.touch(at=self._clock.now(), actor_id=command.actor_id)
+            repository.save(course)
+            uow.commit()
+            return to_course_result(course)
+        except Exception:
+            uow.rollback()
+            raise
+        finally:
+            _close_uow(uow)
+
+
+class ArchiveModuleHandler:
+    """Архивирует модуль курса."""
+
+    def __init__(self, *, uow_factory: WriteUnitOfWorkFactory, clock: Clock) -> None:
+        self._uow_factory = uow_factory
+        self._clock = clock
+
+    def __call__(self, command: ArchiveModuleCommand) -> CourseResult:
+        uow = self._uow_factory()
+        try:
+            repository = uow.repositories.courses
+            _ensure_admin_or_teacher(command.actor_roles)
+            course = repository.get(command.course_id)
+            if course is None:
+                raise NotFoundError("Курс не найден.")
+            _ensure_course_editor(
+                course=course,
+                actor_id=command.actor_id,
+                actor_roles=command.actor_roles,
+                action="Архивировать модуль",
+            )
+            course.archive_module(
+                module_id=command.module_id,
+                changed_at=self._clock.now(),
+                changed_by=command.actor_id,
+            )
+            repository.save(course)
+            uow.commit()
+            return to_course_result(course)
+        except Exception:
+            uow.rollback()
+            raise
+        finally:
+            _close_uow(uow)
+
+
+class ArchiveLessonHandler:
+    """Архивирует урок курса."""
+
+    def __init__(self, *, uow_factory: WriteUnitOfWorkFactory, clock: Clock) -> None:
+        self._uow_factory = uow_factory
+        self._clock = clock
+
+    def __call__(self, command: ArchiveLessonCommand) -> CourseResult:
+        uow = self._uow_factory()
+        try:
+            repository = uow.repositories.courses
+            _ensure_admin_or_teacher(command.actor_roles)
+            course = repository.get(command.course_id)
+            if course is None:
+                raise NotFoundError("Курс не найден.")
+            _ensure_course_editor(
+                course=course,
+                actor_id=command.actor_id,
+                actor_roles=command.actor_roles,
+                action="Архивировать урок",
+            )
+            course.archive_lesson(
+                module_id=command.module_id,
+                lesson_id=command.lesson_id,
+                changed_at=self._clock.now(),
+                changed_by=command.actor_id,
+            )
+            repository.save(course)
+            uow.commit()
+            return to_course_result(course)
+        except Exception:
+            uow.rollback()
+            raise
+        finally:
+            _close_uow(uow)
+
+
+class ReorderModulesHandler:
+    """Переупорядочивает модули курса."""
+
+    def __init__(self, *, uow_factory: WriteUnitOfWorkFactory, clock: Clock) -> None:
+        self._uow_factory = uow_factory
+        self._clock = clock
+
+    def __call__(self, command: ReorderModulesCommand) -> CourseResult:
+        uow = self._uow_factory()
+        try:
+            repository = uow.repositories.courses
+            _ensure_admin_or_teacher(command.actor_roles)
+            course = repository.get(command.course_id)
+            if course is None:
+                raise NotFoundError("Курс не найден.")
+            _ensure_course_editor(
+                course=course,
+                actor_id=command.actor_id,
+                actor_roles=command.actor_roles,
+                action="Переупорядочивать модули",
+            )
+            course.reorder_modules(
+                ordered_module_ids=_ordered_item_ids(
+                    command.items,
+                    entity_name="modules",
+                    id_field="module_id",
+                ),
+                changed_at=self._clock.now(),
+                changed_by=command.actor_id,
+            )
+            repository.save(course)
+            uow.commit()
+            return to_course_result(course)
+        except Exception:
+            uow.rollback()
+            raise
+        finally:
+            _close_uow(uow)
+
+
+class DuplicateModuleHandler:
+    """Дублирует модуль курса."""
+
+    def __init__(self, *, uow_factory: WriteUnitOfWorkFactory, clock: Clock) -> None:
+        self._uow_factory = uow_factory
+        self._clock = clock
+
+    def __call__(self, command: DuplicateModuleCommand) -> CourseResult:
+        uow = self._uow_factory()
+        try:
+            repository = uow.repositories.courses
+            _ensure_admin_or_teacher(command.actor_roles)
+            course = repository.get(command.course_id)
+            if course is None:
+                raise NotFoundError("Курс не найден.")
+            _ensure_course_editor(
+                course=course,
+                actor_id=command.actor_id,
+                actor_roles=command.actor_roles,
+                action="Дублировать модуль",
+            )
+            source = next(
+                (
+                    item
+                    for item in course.modules
+                    if item.module_id == command.module_id
+                ),
+                None,
+            )
+            if source is None:
+                raise NotFoundError("Модуль не найден.")
+            course.duplicate_module(
+                module_id=command.module_id,
+                new_module_id=str(uuid4()),
+                new_lesson_ids=[str(uuid4()) for _ in source.lessons],
+                changed_at=self._clock.now(),
+                changed_by=command.actor_id,
+            )
+            repository.save(course)
+            uow.commit()
+            return to_course_result(course)
+        except Exception:
+            uow.rollback()
+            raise
+        finally:
+            _close_uow(uow)
+
+
+class ReorderLessonsHandler:
+    """Переупорядочивает уроки модуля курса."""
+
+    def __init__(self, *, uow_factory: WriteUnitOfWorkFactory, clock: Clock) -> None:
+        self._uow_factory = uow_factory
+        self._clock = clock
+
+    def __call__(self, command: ReorderLessonsCommand) -> CourseResult:
+        uow = self._uow_factory()
+        try:
+            repository = uow.repositories.courses
+            _ensure_admin_or_teacher(command.actor_roles)
+            course = repository.get(command.course_id)
+            if course is None:
+                raise NotFoundError("Курс не найден.")
+            _ensure_course_editor(
+                course=course,
+                actor_id=command.actor_id,
+                actor_roles=command.actor_roles,
+                action="Переупорядочивать уроки",
+            )
+            module = next(
+                (
+                    item
+                    for item in course.modules
+                    if item.module_id == command.module_id
+                ),
+                None,
+            )
+            if module is None:
+                raise NotFoundError("Модуль не найден.")
+            module.reorder_lessons(
+                ordered_lesson_ids=_ordered_item_ids(
+                    command.items,
+                    entity_name="lessons",
+                    id_field="lesson_id",
+                ),
+                changed_at=self._clock.now(),
+                changed_by=command.actor_id,
+            )
+            course.meta.touch(at=self._clock.now(), actor_id=command.actor_id)
+            repository.save(course)
+            uow.commit()
+            return to_course_result(course)
+        except Exception:
+            uow.rollback()
+            raise
+        finally:
+            _close_uow(uow)
+
+
+class DuplicateLessonHandler:
+    """Дублирует урок курса."""
+
+    def __init__(self, *, uow_factory: WriteUnitOfWorkFactory, clock: Clock) -> None:
+        self._uow_factory = uow_factory
+        self._clock = clock
+
+    def __call__(self, command: DuplicateLessonCommand) -> CourseResult:
+        uow = self._uow_factory()
+        try:
+            repository = uow.repositories.courses
+            _ensure_admin_or_teacher(command.actor_roles)
+            course = repository.get(command.course_id)
+            if course is None:
+                raise NotFoundError("Курс не найден.")
+            _ensure_course_editor(
+                course=course,
+                actor_id=command.actor_id,
+                actor_roles=command.actor_roles,
+                action="Дублировать урок",
+            )
+            course.duplicate_lesson(
+                module_id=command.module_id,
+                lesson_id=command.lesson_id,
+                new_lesson_id=str(uuid4()),
+                changed_at=self._clock.now(),
+                changed_by=command.actor_id,
+            )
             repository.save(course)
             uow.commit()
             return to_course_result(course)

@@ -25,8 +25,14 @@ from src.application.courses.commands.dto import (
     AddLessonCommand,
     AddModuleCommand,
     ArchiveCourseCommand,
+    ArchiveLessonCommand,
+    ArchiveModuleCommand,
     CreateCourseCommand,
+    DuplicateLessonCommand,
+    DuplicateModuleCommand,
     PublishCourseCommand,
+    ReorderLessonsCommand,
+    ReorderModulesCommand,
     UpdateCourseCommand,
     UpdateLessonCommand,
     UpdateModuleCommand,
@@ -35,13 +41,19 @@ from src.application.courses.handlers.manage_course_handlers import (
     AddLessonHandler,
     AddModuleHandler,
     ArchiveCourseHandler,
+    ArchiveLessonHandler,
+    ArchiveModuleHandler,
     CreateCourseHandler,
+    DuplicateLessonHandler,
+    DuplicateModuleHandler,
     GetCourseAuthoringHandler,
     GetCourseByIdHandler,
     GetPublishedCourseBySlugHandler,
     ListAdminCoursesHandler,
     ListPublishedCoursesHandler,
     PublishCourseHandler,
+    ReorderLessonsHandler,
+    ReorderModulesHandler,
     UpdateCourseHandler,
     UpdateLessonHandler,
     UpdateModuleHandler,
@@ -248,6 +260,30 @@ def build_runtime() -> RuntimeContainer:
     facade.register_command_handler(
         UpdateLessonCommand,
         UpdateLessonHandler(uow_factory=uow_factory, clock=clock),
+    )
+    facade.register_command_handler(
+        ArchiveModuleCommand,
+        ArchiveModuleHandler(uow_factory=uow_factory, clock=clock),
+    )
+    facade.register_command_handler(
+        ArchiveLessonCommand,
+        ArchiveLessonHandler(uow_factory=uow_factory, clock=clock),
+    )
+    facade.register_command_handler(
+        DuplicateModuleCommand,
+        DuplicateModuleHandler(uow_factory=uow_factory, clock=clock),
+    )
+    facade.register_command_handler(
+        DuplicateLessonCommand,
+        DuplicateLessonHandler(uow_factory=uow_factory, clock=clock),
+    )
+    facade.register_command_handler(
+        ReorderModulesCommand,
+        ReorderModulesHandler(uow_factory=uow_factory, clock=clock),
+    )
+    facade.register_command_handler(
+        ReorderLessonsCommand,
+        ReorderLessonsHandler(uow_factory=uow_factory, clock=clock),
     )
     facade.register_command_handler(
         UpdateCourseCommand,

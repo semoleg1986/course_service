@@ -148,6 +148,32 @@ class UpdateLessonRequest(BaseModel):
     status: str | None = None
 
 
+class ReorderModuleItemRequest(BaseModel):
+    """Один module item reorder-запроса."""
+
+    module_id: str
+    position: int = Field(ge=1)
+
+
+class ReorderModulesRequest(BaseModel):
+    """Запрос полного переупорядочивания модулей."""
+
+    items: list[ReorderModuleItemRequest] = Field(min_length=1)
+
+
+class ReorderLessonItemRequest(BaseModel):
+    """Один lesson item reorder-запроса."""
+
+    lesson_id: str
+    position: int = Field(ge=1)
+
+
+class ReorderLessonsRequest(BaseModel):
+    """Запрос полного переупорядочивания уроков."""
+
+    items: list[ReorderLessonItemRequest] = Field(min_length=1)
+
+
 class SeoResponse(BaseModel):
     """SEO поля курса в response."""
 
@@ -239,7 +265,9 @@ class CourseAuthoringLessonResponse(BaseModel):
     position: int = Field(ge=1)
     version: int = Field(ge=1)
     created_at: datetime
+    created_by: str
     updated_at: datetime
+    updated_by: str
 
 
 class CourseAuthoringModuleResponse(BaseModel):
@@ -256,7 +284,25 @@ class CourseAuthoringModuleResponse(BaseModel):
     lessons: list[CourseAuthoringLessonResponse]
     version: int = Field(ge=1)
     created_at: datetime
+    created_by: str
     updated_at: datetime
+    updated_by: str
+
+
+class CourseAuthoringReadinessCheckResponse(BaseModel):
+    """Один readiness check для публикации курса."""
+
+    code: str
+    label: str
+    passed: bool
+    detail: str | None = None
+
+
+class CourseAuthoringReadinessResponse(BaseModel):
+    """Сводная готовность курса к публикации."""
+
+    ready_to_publish: bool
+    checks: list[CourseAuthoringReadinessCheckResponse]
 
 
 class CourseAuthoringResponse(BaseModel):
@@ -264,6 +310,10 @@ class CourseAuthoringResponse(BaseModel):
 
     course: CourseResponse
     modules: list[CourseAuthoringModuleResponse]
+    readiness: CourseAuthoringReadinessResponse
+    has_unpublished_changes: bool
+    draft_version: int = Field(ge=1)
+    published_version: int | None = Field(default=None, ge=1)
     version: int = Field(ge=1)
     created_at: datetime
     updated_at: datetime

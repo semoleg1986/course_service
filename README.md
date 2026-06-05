@@ -60,7 +60,9 @@ frontend does not assemble course editor state from unrelated responses.
   `items`, `total`, `limit`, `offset`; list items include authoring audit fields
   `created_by` and `updated_by`.
 - `GET /v1/admin/courses/{course_id}/authoring` — full editor read model:
-  course summary, modules, lessons, statuses, positions and content refs.
+  course summary, modules, lessons, statuses, positions, content refs,
+  `readiness`, `has_unpublished_changes`, `draft_version` and
+  `published_version`.
 - `POST /v1/admin/courses` / `PATCH /v1/admin/courses/{course_id}` — create and
   update course metadata.
 - `POST /v1/admin/courses/{course_id}/modules` — append module.
@@ -69,6 +71,21 @@ frontend does not assemble course editor state from unrelated responses.
 - `PATCH /v1/admin/courses/{course_id}/modules/{module_id}` — update module.
 - `PATCH /v1/admin/courses/{course_id}/modules/{module_id}/lessons/{lesson_id}`
   — update lesson.
+- `POST /v1/admin/courses/{course_id}/modules/reorder` — reorder all current
+  modules. Request must include the full module list with continuous positions
+  from `1` using `{ "module_id": "...", "position": 1 }`.
+- `POST /v1/admin/courses/{course_id}/modules/{module_id}/lessons/reorder` —
+  reorder all current lessons in a module. Request must include the full lesson
+  list with continuous positions from `1` using
+  `{ "lesson_id": "...", "position": 1 }`.
+- `POST /v1/admin/courses/{course_id}/modules/{module_id}/archive` — archive a
+  module through `status=archived`.
+- `POST /v1/admin/courses/{course_id}/modules/{module_id}/lessons/{lesson_id}/archive`
+  — archive a lesson through `status=archived`.
+- `POST /v1/admin/courses/{course_id}/modules/{module_id}/duplicate` — create a
+  draft copy of a module and its lessons with fresh IDs.
+- `POST /v1/admin/courses/{course_id}/modules/{module_id}/lessons/{lesson_id}/duplicate`
+  — create a draft copy of a lesson with a fresh ID.
 - `POST /v1/admin/courses/{course_id}/publish` / `archive` — publish lifecycle.
 
 After write mutations, clients should refetch

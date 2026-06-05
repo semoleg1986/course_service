@@ -5,8 +5,8 @@
 1. `Module` и `Lesson` не существуют вне агрегата `Course`.
 2. Курс переводится в `published` только если структура валидна:
    - есть минимум один модуль
-   - в каждом модуле есть минимум один урок
-   - граф prerequisites ацикличен
+   - есть минимум один модуль в статусе `published`
+   - в каждом `published` модуле есть минимум один `published` урок
    - SEO-минимум валиден: непустые `slug`, `meta_title`, `meta_description`
 3. `Enrollment` уникален по `(course_id, student_id)`.
 4. `Course.slug` уникален среди активных (`draft|published`) курсов.
@@ -63,7 +63,19 @@
   - `POST /v1/admin/courses/{course_id}/modules/{module_id}/lessons`
   - `PATCH /v1/admin/courses/{course_id}/modules/{module_id}`
   - `PATCH /v1/admin/courses/{course_id}/modules/{module_id}/lessons/{lesson_id}`
+  - `POST /v1/admin/courses/{course_id}/modules/reorder`
+  - `POST /v1/admin/courses/{course_id}/modules/{module_id}/lessons/reorder`
+  - `POST /v1/admin/courses/{course_id}/modules/{module_id}/archive`
+  - `POST /v1/admin/courses/{course_id}/modules/{module_id}/lessons/{lesson_id}/archive`
+  - `POST /v1/admin/courses/{course_id}/modules/{module_id}/duplicate`
+  - `POST /v1/admin/courses/{course_id}/modules/{module_id}/lessons/{lesson_id}/duplicate`
   - по умолчанию не считаются idempotent и не должны ретраиться вслепую без client-side discipline
+- reorder-команды принимают полный текущий список элементов:
+  - позиции должны быть непрерывными с `1`
+  - дубликаты `module_id`/`lesson_id`/`position` запрещены
+  - пропущенные или лишние элементы отклоняются как нарушение инварианта
+- duplicate-команды создают новые сущности только в `draft`, даже если источник
+  был `published`, чтобы копия не попадала в delivery без явной публикации.
 - `POST /v1/admin/courses/{course_id}/publish` и `POST /v1/admin/courses/{course_id}/archive`
   - защищены state-инвариантами
   - но не объявлены strict-idempotent: повтор может быть отклонен текущим состоянием курса
