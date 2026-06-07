@@ -10,7 +10,6 @@ from src.domain.content.course.entity import Course, Lesson, Module
 from src.domain.content.course.value_objects import (
     CourseAudience,
     CourseDeliverySettings,
-    CoursePricing,
     CourseSchedule,
     CourseSlug,
     SeoMetadata,
@@ -113,8 +112,6 @@ class SqlalchemyCourseRepository:
                     CourseCatalogModel.teacher_display_name,
                     CourseCatalogModel.slug,
                     CourseCatalogModel.publish_state,
-                    CourseCatalogModel.price,
-                    CourseCatalogModel.currency,
                     modules_count.label("modules_count"),
                     lessons_total.label("lessons_total"),
                     CourseCatalogModel.published_at,
@@ -143,8 +140,6 @@ class SqlalchemyCourseRepository:
                         teacher_display_name=row.teacher_display_name,
                         slug=row.slug,
                         publish_state=row.publish_state,
-                        price=float(row.price),
-                        currency=row.currency,
                         modules_count=int(row.modules_count),
                         lessons_total=int(row.lessons_total),
                         published_at=row.published_at,
@@ -236,8 +231,10 @@ class SqlalchemyCourseRepository:
         model.enrollment_closes_at = course.schedule.enrollment_closes_at
         model.timezone = course.schedule.timezone
 
-        model.price = course.pricing.price
-        model.currency = course.pricing.currency
+        # Legacy columns remain in the table for compatibility until a safe
+        # migration can drop them. Pricing belongs to commercial_catalog_service.
+        model.price = 0
+        model.currency = "USD"
         model.language = course.audience.language
         model.age_min = course.audience.age_min
         model.age_max = course.audience.age_max
@@ -284,7 +281,6 @@ class SqlalchemyCourseRepository:
                 access_ttl_days=model.access_ttl_days,
                 timezone=model.timezone,
             ),
-            pricing=CoursePricing(price=float(model.price), currency=model.currency),
             audience=CourseAudience(
                 language=model.language,
                 level=model.level,

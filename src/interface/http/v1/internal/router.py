@@ -103,8 +103,6 @@ def get_course_payment_snapshot(
 
     return CoursePaymentSnapshotResponse(
         course_id=result.course_id,
-        price=result.price,
-        currency=result.currency,
         access_ttl_days=result.access_ttl_days,
     )
 

@@ -54,8 +54,6 @@ def _prepare_parent_progress_course(
             access_ttl_days=None,
             enrollment_opens_at=None,
             enrollment_closes_at=None,
-            price=0.0,
-            currency="USD",
             language="ru",
             age_min=None,
             age_max=None,

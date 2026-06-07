@@ -51,11 +51,13 @@ src/domain/
 - `schedule.enrollment_opens_at` / `schedule.enrollment_closes_at`;
 - `schedule.access_ttl_days`;
 - `schedule.timezone`;
-- `pricing.price` / `pricing.currency`;
 - `audience.language` / `audience.level` / `audience.age_min` / `audience.age_max` / `audience.max_students`;
 - `delivery.tags` / `delivery.cover_image_url` / `delivery.is_live_enabled` / `delivery.live_room_template_id`;
 - расчетные метрики `lessons_total` и `estimated_duration_hours` (правило: 1 урок = 1 час).
-- расчетные/системные поля `modules_count`, `is_free`, `published_at`, `published_by_admin_id`, `archived_at`, `archived_by`.
+- расчетные/системные поля `modules_count`, `published_at`, `published_by_admin_id`, `archived_at`, `archived_by`.
+
+Цена, валюта, скидки и offer lifecycle не принадлежат `course_service`.
+Коммерческий источник истины — `commercial_catalog_service`.
 
 ### `Enrollment` (Aggregate Root)
 Владеет состоянием участия ученика и прогрессом для пары `(course_id, student_id)`.

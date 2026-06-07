@@ -8,7 +8,6 @@ from src.domain.content.course.entity import Course, Lesson, Module
 from src.domain.content.course.value_objects import (
     CourseAudience,
     CourseDeliverySettings,
-    CoursePricing,
     CourseSchedule,
     CourseSlug,
     SeoMetadata,
@@ -104,10 +103,6 @@ def test_course_seo_value_object_validation() -> None:
             enrollment_opens_at=datetime(2026, 4, 20, tzinfo=UTC),
             enrollment_closes_at=datetime(2026, 4, 10, tzinfo=UTC),
         )
-    with pytest.raises(InvariantViolationError):
-        CoursePricing(price=-1, currency="USD")
-    with pytest.raises(InvariantViolationError):
-        CoursePricing(price=10, currency="usd")
     with pytest.raises(InvariantViolationError):
         CourseAudience(language="", level="beginner")
     with pytest.raises(InvariantViolationError):

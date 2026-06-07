@@ -38,8 +38,6 @@ class CreateCourseRequest(BaseModel):
     access_ttl_days: int | None = Field(default=None, ge=1)
     enrollment_opens_at: datetime | None = None
     enrollment_closes_at: datetime | None = None
-    price: float = Field(default=0, ge=0)
-    currency: str = Field(default="USD", min_length=3, max_length=3)
     language: str = Field(default="ru")
     age_min: int | None = Field(default=None, ge=0)
     age_max: int | None = Field(default=None, ge=0)
@@ -76,8 +74,6 @@ class UpdateCourseRequest(BaseModel):
     access_ttl_days: int | None = Field(default=None, ge=1)
     enrollment_opens_at: datetime | None = None
     enrollment_closes_at: datetime | None = None
-    price: float | None = Field(default=None, ge=0)
-    currency: str | None = Field(default=None, min_length=3, max_length=3)
     language: str | None = None
     age_min: int | None = Field(default=None, ge=0)
     age_max: int | None = Field(default=None, ge=0)
@@ -225,8 +221,6 @@ class CourseResponse(BaseModel):
     enrollment_opens_at_local: datetime | None = None
     enrollment_closes_at: datetime | None
     enrollment_closes_at_local: datetime | None = None
-    price: float
-    currency: str
     language: str
     age_min: int | None
     age_max: int | None
@@ -240,7 +234,6 @@ class CourseResponse(BaseModel):
     modules_count: int
     lessons_total: int
     estimated_duration_hours: int
-    is_free: bool
     published_at: datetime | None
     published_by_admin_id: str | None
     archived_at: datetime | None
@@ -328,8 +321,6 @@ class AdminCourseListItemResponse(BaseModel):
     teacher_display_name: str | None
     slug: str
     publish_state: str
-    price: float
-    currency: str
     modules_count: int = Field(ge=0)
     lessons_total: int = Field(ge=0)
     published_at: datetime | None
@@ -367,8 +358,6 @@ class PublicCourseResponse(BaseModel):
     enrollment_opens_at_local: datetime | None = None
     enrollment_closes_at: datetime | None
     enrollment_closes_at_local: datetime | None = None
-    price: float
-    currency: str
     language: str
     age_min: int | None
     age_max: int | None
@@ -382,7 +371,6 @@ class PublicCourseResponse(BaseModel):
     modules_count: int
     lessons_total: int
     estimated_duration_hours: int
-    is_free: bool
     published_at: datetime | None
     publish_state: str
     viewer_timezone: str | None = None

@@ -165,4 +165,3 @@ def test_course_lessons_total_equals_estimated_hours() -> None:
     assert course.modules_count == 1
     assert course.lessons_total == 1
     assert course.estimated_duration_hours == 1
-    assert course.is_free

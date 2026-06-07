@@ -10,7 +10,6 @@ from src.domain.shared.statuses import PublishState
 from .value_objects import (
     CourseAudience,
     CourseDeliverySettings,
-    CoursePricing,
     CourseSchedule,
     CourseSlug,
     SeoMetadata,
@@ -287,8 +286,6 @@ class Course:
     :type slug: CourseSlug
     :param schedule: Расписание курса.
     :type schedule: CourseSchedule
-    :param pricing: Ценовые параметры.
-    :type pricing: CoursePricing
     :param audience: Параметры аудитории.
     :type audience: CourseAudience
     :param delivery: Настройки доставки/представления.
@@ -310,7 +307,6 @@ class Course:
     teacher_display_name: str | None
     slug: CourseSlug
     schedule: CourseSchedule
-    pricing: CoursePricing
     audience: CourseAudience
     delivery: CourseDeliverySettings
     seo: SeoMetadata
@@ -333,7 +329,6 @@ class Course:
         created_at: datetime,
         created_by: str,
         teacher_display_name: str | None = None,
-        pricing: CoursePricing | None = None,
         audience: CourseAudience | None = None,
         delivery: CourseDeliverySettings | None = None,
     ) -> "Course":
@@ -350,7 +345,6 @@ class Course:
             ),
             slug=slug,
             schedule=schedule,
-            pricing=pricing or CoursePricing(),
             audience=audience or CourseAudience(),
             delivery=delivery or CourseDeliverySettings(),
             seo=seo,
@@ -375,11 +369,6 @@ class Course:
         Бизнес-правило: 1 урок = 1 час.
         """
         return self.lessons_total
-
-    @property
-    def is_free(self) -> bool:
-        """Флаг бесплатного курса."""
-        return self.pricing.price == 0
 
     @property
     def archived_at(self) -> datetime | None:

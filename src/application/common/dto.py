@@ -35,8 +35,6 @@ class CourseResult:
     access_ttl_days: int | None
     enrollment_opens_at: datetime | None
     enrollment_closes_at: datetime | None
-    price: float
-    currency: str
     language: str
     age_min: int | None
     age_max: int | None
@@ -50,7 +48,6 @@ class CourseResult:
     modules_count: int
     lessons_total: int
     estimated_duration_hours: int
-    is_free: bool
     published_at: datetime | None
     published_by_admin_id: str | None
     archived_at: datetime | None
@@ -147,8 +144,6 @@ class AdminCourseListItemResult:
     teacher_display_name: str | None
     slug: str
     publish_state: str
-    price: float
-    currency: str
     modules_count: int
     lessons_total: int
     published_at: datetime | None
@@ -312,8 +307,6 @@ class PublicCourseResult:
     access_ttl_days: int | None
     enrollment_opens_at: datetime | None
     enrollment_closes_at: datetime | None
-    price: float
-    currency: str
     language: str
     age_min: int | None
     age_max: int | None
@@ -327,7 +320,6 @@ class PublicCourseResult:
     modules_count: int
     lessons_total: int
     estimated_duration_hours: int
-    is_free: bool
     published_at: datetime | None
     publish_state: str
     seo_meta_title: str

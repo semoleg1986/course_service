@@ -70,8 +70,6 @@ def test_internal_course_payment_snapshot_contract() -> None:
             "starts_at": "2026-09-01T09:00:00Z",
             "duration_days": 30,
             "access_ttl_days": 45,
-            "price": 150,
-            "currency": "USD",
         },
     )
     assert create.status_code == 201, create.text
@@ -84,8 +82,8 @@ def test_internal_course_payment_snapshot_contract() -> None:
     assert response.status_code == 200, response.text
     body = response.json()
     assert body["course_id"] == course_id
-    assert body["price"] == 150
-    assert body["currency"] == "USD"
+    assert "price" not in body
+    assert "currency" not in body
     assert body["access_ttl_days"] == 45
 
 

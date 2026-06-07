@@ -52,7 +52,6 @@ from src.domain.content.course.repository import CourseRepository
 from src.domain.content.course.value_objects import (
     CourseAudience,
     CourseDeliverySettings,
-    CoursePricing,
     CourseSchedule,
     CourseSlug,
     SeoMetadata,
@@ -189,7 +188,6 @@ class CreateCourseHandler:
                     access_ttl_days=command.access_ttl_days,
                     timezone=command.timezone,
                 ),
-                pricing=CoursePricing(price=command.price, currency=command.currency),
                 audience=CourseAudience(
                     language=command.language,
                     level=command.level,
@@ -306,12 +304,6 @@ class UpdateCourseHandler:
                     else course.schedule.access_ttl_days
                 ),
                 timezone=command.timezone or course.schedule.timezone,
-            )
-            course.pricing = CoursePricing(
-                price=(
-                    command.price if command.price is not None else course.pricing.price
-                ),
-                currency=command.currency or course.pricing.currency,
             )
             course.audience = CourseAudience(
                 language=command.language or course.audience.language,
@@ -462,8 +454,6 @@ class ListAdminCoursesHandler:
                     teacher_display_name=record.teacher_display_name,
                     slug=record.slug,
                     publish_state=record.publish_state,
-                    price=record.price,
-                    currency=record.currency,
                     modules_count=record.modules_count,
                     lessons_total=record.lessons_total,
                     published_at=record.published_at,

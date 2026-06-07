@@ -37,8 +37,6 @@ def test_admin_create_update_get_course_flow() -> None:
             "access_ttl_days": 180,
             "enrollment_opens_at": "2026-08-01T00:00:00Z",
             "enrollment_closes_at": "2026-09-10T00:00:00Z",
-            "price": 1990,
-            "currency": "USD",
             "language": "ru",
             "age_min": 12,
             "age_max": 16,
@@ -63,7 +61,9 @@ def test_admin_create_update_get_course_flow() -> None:
     assert created["teacher_id"] == "teacher-1"
     assert created["modules_count"] == 0
     assert created["estimated_duration_hours"] == 0
-    assert created["is_free"] is False
+    assert "price" not in created
+    assert "currency" not in created
+    assert "is_free" not in created
     runtime = get_runtime()
     assert (
         runtime.access_read_model.get_course_owner(created["course_id"]) == "teacher-1"
@@ -75,15 +75,15 @@ def test_admin_create_update_get_course_flow() -> None:
         f"/v1/admin/courses/{course_id}",
         json={
             "title": "Алгебра 8 класс (обновлено)",
-            "price": 0,
             "tags": ["algebra", "updated"],
         },
     )
     assert update_response.status_code == 200, update_response.text
     updated = update_response.json()
     assert updated["title"] == "Алгебра 8 класс (обновлено)"
-    assert updated["price"] == 0
-    assert updated["is_free"] is True
+    assert "price" not in updated
+    assert "currency" not in updated
+    assert "is_free" not in updated
     assert updated["tags"] == ["algebra", "updated"]
     assert runtime.access_read_model.get_course_owner(course_id) == "teacher-1"
 

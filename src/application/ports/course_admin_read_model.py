@@ -17,8 +17,6 @@ class CourseAdminListRecord:
     teacher_display_name: str | None
     slug: str
     publish_state: str
-    price: float
-    currency: str
     modules_count: int
     lessons_total: int
     published_at: datetime | None

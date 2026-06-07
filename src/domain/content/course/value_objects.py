@@ -8,7 +8,6 @@ from urllib.parse import urlparse
 from src.domain.errors import InvariantViolationError
 
 _SLUG_PATTERN = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
-_CURRENCY_PATTERN = re.compile(r"^[A-Z]{3}$")
 
 
 @dataclass(frozen=True, slots=True)
@@ -96,29 +95,6 @@ class CourseSchedule:
         ):
             raise InvariantViolationError(
                 "enrollment_opens_at не может быть позже enrollment_closes_at"
-            )
-
-
-@dataclass(frozen=True, slots=True)
-class CoursePricing:
-    """
-    Ценовые параметры курса.
-
-    :param price: Цена курса.
-    :type price: float
-    :param currency: Код валюты ISO-4217.
-    :type currency: str
-    """
-
-    price: float = 0.0
-    currency: str = "USD"
-
-    def __post_init__(self) -> None:
-        if self.price < 0:
-            raise InvariantViolationError("price не может быть отрицательной")
-        if not _CURRENCY_PATTERN.fullmatch(self.currency):
-            raise InvariantViolationError(
-                "currency должен быть ISO-4217 (3 заглавные буквы)"
             )
 
 

@@ -19,8 +19,6 @@ class CreateCourseCommand:
     access_ttl_days: int | None
     enrollment_opens_at: datetime | None
     enrollment_closes_at: datetime | None
-    price: float
-    currency: str
     language: str
     age_min: int | None
     age_max: int | None
@@ -57,8 +55,6 @@ class UpdateCourseCommand:
     access_ttl_days: int | None = None
     enrollment_opens_at: datetime | None = None
     enrollment_closes_at: datetime | None = None
-    price: float | None = None
-    currency: str | None = None
     language: str | None = None
     age_min: int | None = None
     age_max: int | None = None

@@ -72,8 +72,6 @@ class InMemoryCourseRepository:
                     teacher_display_name=item.teacher_display_name,
                     slug=item.slug.value,
                     publish_state=item.publish_state.value,
-                    price=item.pricing.price,
-                    currency=item.pricing.currency,
                     modules_count=item.modules_count,
                     lessons_total=item.lessons_total,
                     published_at=item.published_at,
