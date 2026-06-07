@@ -194,6 +194,10 @@ def test_admin_authoring_read_model_returns_modules_and_lessons() -> None:
     assert payload["modules"][0]["lessons"][0]["created_by"] == "admin-1"
     assert payload["modules"][0]["lessons"][0]["updated_by"] == "admin-1"
     assert payload["readiness"]["ready_to_publish"] is False
+    readiness_codes = {
+        check["code"]: check["passed"] for check in payload["readiness"]["checks"]
+    }
+    assert readiness_codes["has_default_offer"] is True
     assert payload["has_unpublished_changes"] is True
     assert payload["draft_version"] == payload["version"]
 

@@ -40,6 +40,9 @@ Key variables:
 - `COURSE_AUTH_JWKS_URL`
 - `COURSE_AUTH_JWKS_JSON`
 - `COURSE_SERVICE_TOKEN`
+- `COURSE_COMMERCIAL_CATALOG_SERVICE_BASE_URL`
+- `COURSE_COMMERCIAL_CATALOG_SERVICE_TOKEN`
+- `COURSE_COMMERCIAL_CATALOG_SERVICE_TIMEOUT_SECONDS`
 
 ## Tests and quality
 
@@ -63,6 +66,9 @@ frontend does not assemble course editor state from unrelated responses.
   course summary, modules, lessons, statuses, positions, content refs,
   `readiness`, `has_unpublished_changes`, `draft_version` and
   `published_version`.
+  `readiness.checks` includes `has_default_offer`; this is resolved through
+  `commercial_catalog_service` because prices/offers are not owned by
+  `course_service`.
 - `POST /v1/admin/courses` / `PATCH /v1/admin/courses/{course_id}` — create and
   update course metadata.
 - `POST /v1/admin/courses/{course_id}/modules` — append module.

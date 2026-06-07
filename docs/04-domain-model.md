@@ -58,6 +58,9 @@ src/domain/
 
 Цена, валюта, скидки и offer lifecycle не принадлежат `course_service`.
 Коммерческий источник истины — `commercial_catalog_service`.
+`course_service` может читать только readiness-сигнал `has_default_offer` через
+internal contract `commercial_catalog_service`; это не переносит pricing/offer
+ownership в course domain.
 
 ### `Enrollment` (Aggregate Root)
 Владеет состоянием участия ученика и прогрессом для пары `(course_id, student_id)`.

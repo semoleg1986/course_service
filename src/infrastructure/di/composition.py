@@ -81,6 +81,10 @@ from src.application.ports.access_token_verifier import AccessTokenVerifier
 from src.infrastructure.auth.jwks_access_token_verifier import JwksAccessTokenVerifier
 from src.infrastructure.bonus.http_bonus_wallet import HttpBonusWalletPort
 from src.infrastructure.bonus.inmemory_bonus_wallet import InMemoryBonusWalletPort
+from src.infrastructure.catalog.http_course_offer_catalog import HttpCourseOfferCatalog
+from src.infrastructure.catalog.inmemory_course_offer_catalog import (
+    InMemoryCourseOfferCatalog,
+)
 from src.infrastructure.clock.system_clock import SystemClock
 from src.infrastructure.config.settings import Settings
 from src.infrastructure.db.inmemory.access_read_model import InMemoryAccessReadModel
@@ -143,6 +147,7 @@ def build_runtime() -> RuntimeContainer:
         relation_checker = InMemoryParentStudentRelationChecker()
         student_parent_directory = InMemoryStudentParentDirectory()
         bonus_wallet = InMemoryBonusWalletPort()
+        course_offer_catalog = InMemoryCourseOfferCatalog()
     else:
         from src.infrastructure.db.sqlalchemy import (
             audit_evidence_repository_sqlalchemy as audit_repo_sqlalchemy,
@@ -193,6 +198,11 @@ def build_runtime() -> RuntimeContainer:
             base_url=settings.bonus_service_base_url,
             service_token=settings.bonus_service_token,
             timeout_seconds=settings.bonus_service_timeout_seconds,
+        )
+        course_offer_catalog = HttpCourseOfferCatalog(
+            base_url=settings.commercial_catalog_service_base_url,
+            service_token=settings.commercial_catalog_service_token,
+            timeout_seconds=settings.commercial_catalog_service_timeout_seconds,
         )
 
         def build_sql_uow():
@@ -299,7 +309,10 @@ def build_runtime() -> RuntimeContainer:
     )
     facade.register_query_handler(
         GetCourseAuthoringQuery,
-        GetCourseAuthoringHandler(repository=course_repository),
+        GetCourseAuthoringHandler(
+            repository=course_repository,
+            course_offer_catalog=course_offer_catalog,
+        ),
     )
     facade.register_query_handler(
         ListAdminCoursesQuery,

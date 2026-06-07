@@ -59,7 +59,9 @@ def to_course_result(course: Course) -> CourseResult:
     )
 
 
-def to_course_authoring_result(course: Course) -> CourseAuthoringResult:
+def to_course_authoring_result(
+    course: Course, *, has_default_offer: bool = True
+) -> CourseAuthoringResult:
     """Преобразует Course в полный admin/studio authoring read model."""
 
     published_modules = [
@@ -107,6 +109,16 @@ def to_course_authoring_result(course: Course) -> CourseAuthoringResult:
             label="Заполнен SEO-минимум",
             passed=seo_ready,
             detail=None if seo_ready else "Нужны slug, meta title и meta description.",
+        ),
+        CourseAuthoringReadinessCheckResult(
+            code="has_default_offer",
+            label="Настроен default offer",
+            passed=has_default_offer,
+            detail=(
+                None
+                if has_default_offer
+                else "Создайте активный default offer в commercial_catalog_service."
+            ),
         ),
     ]
     readiness = CourseAuthoringReadinessResult(

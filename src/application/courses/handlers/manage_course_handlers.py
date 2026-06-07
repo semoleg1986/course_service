@@ -45,6 +45,7 @@ from src.application.courses.queries.dto import (
 from src.application.ports.audit_evidence import AuditEvidenceRecord
 from src.application.ports.clock import Clock
 from src.application.ports.course_admin_read_model import CourseAdminReadModel
+from src.application.ports.course_offer_catalog import CourseOfferCatalog
 from src.application.ports.teacher_directory import TeacherDirectory
 from src.application.ports.unit_of_work import UnitOfWork
 from src.domain.content.course.entity import Course, Lesson, Module
@@ -396,8 +397,14 @@ class GetCourseByIdHandler:
 class GetCourseAuthoringHandler:
     """Возвращает полный admin/studio read model курса."""
 
-    def __init__(self, *, repository: CourseRepository) -> None:
+    def __init__(
+        self,
+        *,
+        repository: CourseRepository,
+        course_offer_catalog: CourseOfferCatalog,
+    ) -> None:
         self._repository = repository
+        self._course_offer_catalog = course_offer_catalog
 
     def __call__(self, query: GetCourseAuthoringQuery) -> CourseAuthoringResult:
         _ensure_admin_or_teacher(query.actor_roles)
@@ -408,7 +415,13 @@ class GetCourseAuthoringHandler:
         role_set = {role.strip().lower() for role in query.actor_roles if role.strip()}
         if "admin" not in role_set and course.teacher_id != query.actor_id:
             raise AccessDeniedError("Просмотр курса разрешен только owner/admin.")
-        return to_course_authoring_result(course)
+        has_default_offer = self._course_offer_catalog.has_active_default_offer(
+            course.course_id
+        )
+        return to_course_authoring_result(
+            course,
+            has_default_offer=has_default_offer,
+        )
 
 
 class ListAdminCoursesHandler:

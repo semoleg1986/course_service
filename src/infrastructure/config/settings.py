@@ -26,6 +26,9 @@ class Settings:
     bonus_service_base_url: str
     bonus_service_token: str
     bonus_service_timeout_seconds: float
+    commercial_catalog_service_base_url: str
+    commercial_catalog_service_token: str
+    commercial_catalog_service_timeout_seconds: float
     student_complete_rate_limit_max: int
     student_complete_rate_limit_window_seconds: int
     student_progress_rate_limit_max: int
@@ -78,6 +81,17 @@ class Settings:
             ),
             bonus_service_timeout_seconds=float(
                 os.getenv("COURSE_BONUS_SERVICE_TIMEOUT_SECONDS", "2")
+            ),
+            commercial_catalog_service_base_url=os.getenv(
+                "COURSE_COMMERCIAL_CATALOG_SERVICE_BASE_URL",
+                "http://localhost:8007",
+            ),
+            commercial_catalog_service_token=os.getenv(
+                "COURSE_COMMERCIAL_CATALOG_SERVICE_TOKEN",
+                "dev-service-token",
+            ),
+            commercial_catalog_service_timeout_seconds=float(
+                os.getenv("COURSE_COMMERCIAL_CATALOG_SERVICE_TIMEOUT_SECONDS", "2")
             ),
             student_complete_rate_limit_max=int(
                 os.getenv("COURSE_RATE_LIMIT_STUDENT_COMPLETE_MAX", "20")
